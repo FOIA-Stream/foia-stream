@@ -1,0 +1,397 @@
+// ============================================
+// FOIA Stream - Database Schema (Drizzle ORM)
+// ============================================
+
+import { sql } from 'drizzle-orm';
+import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+
+// ============================================
+// Users & Authentication
+// ============================================
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  role: text('role', {
+    enum: [
+      'civilian',
+      'journalist',
+      'researcher',
+      'attorney',
+      'community_advocate',
+      'agency_official',
+      'admin',
+    ],
+  })
+    .notNull()
+    .default('civilian'),
+  firstName: text('first_name').notNull(),
+  lastName: text('last_name').notNull(),
+  organization: text('organization'),
+  isVerified: integer('is_verified', { mode: 'boolean' }).notNull().default(false),
+  isAnonymous: integer('is_anonymous', { mode: 'boolean' }).notNull().default(false),
+  twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).notNull().default(false),
+  twoFactorSecret: text('two_factor_secret'),
+  // Account lockout fields (GAP-007)
+  failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+  lockedUntil: text('locked_until'),
+  lastFailedLoginAt: text('last_failed_login_at'),
+  // Password management
+  passwordChangedAt: text('password_changed_at'),
+  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const sessions = sqliteTable('sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Agencies
+// ============================================
+
+export const agencies = sqliteTable('agencies', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  abbreviation: text('abbreviation'),
+  jurisdictionLevel: text('jurisdiction_level', {
+    enum: ['federal', 'state', 'local', 'county'],
+  }).notNull(),
+  state: text('state'),
+  city: text('city'),
+  county: text('county'),
+  foiaEmail: text('foia_email'),
+  foiaAddress: text('foia_address'),
+  foiaPortalUrl: text('foia_portal_url'),
+  responseDeadlineDays: integer('response_deadline_days').notNull().default(20),
+  appealDeadlineDays: integer('appeal_deadline_days').notNull().default(30),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// FOIA Requests
+// ============================================
+
+export const foiaRequests = sqliteTable('foia_requests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  agencyId: text('agency_id')
+    .notNull()
+    .references(() => agencies.id),
+  status: text('status', {
+    enum: [
+      'draft',
+      'submitted',
+      'acknowledged',
+      'processing',
+      'fulfilled',
+      'partially_fulfilled',
+      'denied',
+      'appealed',
+      'appeal_pending',
+      'appeal_granted',
+      'appeal_denied',
+      'withdrawn',
+    ],
+  })
+    .notNull()
+    .default('draft'),
+  category: text('category', {
+    enum: [
+      'body_cam_footage',
+      'incident_report',
+      'arrest_record',
+      'use_of_force_report',
+      'policy_document',
+      'budget_record',
+      'contract',
+      'complaint_record',
+      'training_material',
+      'personnel_record',
+      'communication',
+      'other',
+    ],
+  }).notNull(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  dateRangeStart: text('date_range_start'),
+  dateRangeEnd: text('date_range_end'),
+  templateId: text('template_id').references(() => requestTemplates.id),
+  trackingNumber: text('tracking_number'),
+  estimatedFee: real('estimated_fee'),
+  actualFee: real('actual_fee'),
+  submittedAt: text('submitted_at'),
+  acknowledgedAt: text('acknowledged_at'),
+  dueDate: text('due_date'),
+  completedAt: text('completed_at'),
+  denialReason: text('denial_reason'),
+  isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const requestTemplates = sqliteTable('request_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  category: text('category', {
+    enum: [
+      'body_cam_footage',
+      'incident_report',
+      'arrest_record',
+      'use_of_force_report',
+      'policy_document',
+      'budget_record',
+      'contract',
+      'complaint_record',
+      'training_material',
+      'personnel_record',
+      'communication',
+      'other',
+    ],
+  }).notNull(),
+  description: text('description').notNull(),
+  templateText: text('template_text').notNull(),
+  jurisdictionLevel: text('jurisdiction_level', {
+    enum: ['federal', 'state', 'local', 'county'],
+  }),
+  createdBy: text('created_by').references(() => users.id),
+  isOfficial: integer('is_official', { mode: 'boolean' }).notNull().default(false),
+  usageCount: integer('usage_count').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Documents & Media
+// ============================================
+
+export const documents = sqliteTable('documents', {
+  id: text('id').primaryKey(),
+  requestId: text('request_id').references(() => foiaRequests.id),
+  agencyId: text('agency_id')
+    .notNull()
+    .references(() => agencies.id),
+  uploadedBy: text('uploaded_by')
+    .notNull()
+    .references(() => users.id),
+  type: text('type', {
+    enum: ['body_cam_video', 'pdf', 'image', 'audio', 'spreadsheet', 'text', 'other'],
+  }).notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  fileName: text('file_name').notNull(),
+  filePath: text('file_path').notNull(),
+  fileSize: integer('file_size').notNull(),
+  mimeType: text('mime_type').notNull(),
+  isRedacted: integer('is_redacted', { mode: 'boolean' }).notNull().default(false),
+  isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
+  transcript: text('transcript'),
+  metadata: text('metadata', { mode: 'json' }).$type<{
+    date?: string;
+    location?: string;
+    officerIds?: string[];
+    incidentNumber?: string;
+    duration?: number;
+    tags?: string[];
+  }>(),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Comments & Reviews
+// ============================================
+
+export const comments = sqliteTable('comments', {
+  id: text('id').primaryKey(),
+  documentId: text('document_id')
+    .notNull()
+    .references(() => documents.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  type: text('type', {
+    enum: [
+      'general',
+      'misconduct_flag',
+      'positive_interaction',
+      'training_issue',
+      'policy_violation',
+      'context',
+    ],
+  })
+    .notNull()
+    .default('general'),
+  content: text('content').notNull(),
+  timestamp: integer('timestamp'), // seconds into video for video comments
+  isAnonymous: integer('is_anonymous', { mode: 'boolean' }).notNull().default(false),
+  upvotes: integer('upvotes').notNull().default(0),
+  downvotes: integer('downvotes').notNull().default(0),
+  isVerified: integer('is_verified', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const commentVotes = sqliteTable('comment_votes', {
+  id: text('id').primaryKey(),
+  commentId: text('comment_id')
+    .notNull()
+    .references(() => comments.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  vote: integer('vote').notNull(), // 1 for upvote, -1 for downvote
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Appeals
+// ============================================
+
+export const appeals = sqliteTable('appeals', {
+  id: text('id').primaryKey(),
+  requestId: text('request_id')
+    .notNull()
+    .references(() => foiaRequests.id),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  grounds: text('grounds').notNull(),
+  submittedAt: text('submitted_at').notNull(),
+  status: text('status', {
+    enum: ['pending', 'granted', 'denied', 'partial'],
+  })
+    .notNull()
+    .default('pending'),
+  responseAt: text('response_at'),
+  responseText: text('response_text'),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Audit Logs
+// ============================================
+
+export const auditLogs = sqliteTable('audit_logs', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').references(() => users.id),
+  action: text('action', {
+    enum: [
+      // User actions
+      'user_created',
+      'user_login',
+      'user_logout',
+      'user_updated',
+      'user_deleted',
+      // Request actions
+      'request_created',
+      'request_submitted',
+      'request_updated',
+      // Document actions
+      'document_uploaded',
+      'document_viewed',
+      'document_downloaded',
+      // Comment/Appeal actions
+      'comment_created',
+      'appeal_filed',
+      'admin_action',
+      // Security events
+      'security_failed_login',
+      'security_successful_login',
+      'security_account_lockout',
+      'security_password_change',
+      'security_mfa_enabled',
+      'security_mfa_disabled',
+      'security_privilege_escalation',
+      'security_unauthorized_access',
+      'security_rate_limit_exceeded',
+      'security_suspicious_activity',
+      'security_data_export',
+      'security_bulk_data_access',
+      'security_admin_action',
+      'security_session_invalidated',
+      'security_api_key_created',
+      'security_api_key_revoked',
+      // Data retention
+      'retention_delete',
+      'retention_archive',
+      'backup_created',
+      'backup_restored',
+    ],
+  }).notNull(),
+  resourceType: text('resource_type').notNull(),
+  resourceId: text('resource_id').notNull(),
+  details: text('details', { mode: 'json' }).$type<Record<string, unknown>>(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Statistics & Metrics
+// ============================================
+
+export const agencyStats = sqliteTable('agency_stats', {
+  id: text('id').primaryKey(),
+  agencyId: text('agency_id')
+    .notNull()
+    .references(() => agencies.id)
+    .unique(),
+  totalRequests: integer('total_requests').notNull().default(0),
+  pendingRequests: integer('pending_requests').notNull().default(0),
+  fulfilledRequests: integer('fulfilled_requests').notNull().default(0),
+  deniedRequests: integer('denied_requests').notNull().default(0),
+  appealedRequests: integer('appealed_requests').notNull().default(0),
+  averageResponseDays: real('average_response_days'),
+  complianceRate: real('compliance_rate'),
+  lastUpdated: text('last_updated').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const useOfForceStats = sqliteTable('use_of_force_stats', {
+  id: text('id').primaryKey(),
+  agencyId: text('agency_id')
+    .notNull()
+    .references(() => agencies.id),
+  year: integer('year').notNull(),
+  totalIncidents: integer('total_incidents').notNull().default(0),
+  byType: text('by_type', { mode: 'json' }).$type<Record<string, number>>(),
+  byOutcome: text('by_outcome', { mode: 'json' }).$type<Record<string, number>>(),
+  officerInvolvedShootings: integer('officer_involved_shootings').notNull().default(0),
+  complaints: integer('complaints').notNull().default(0),
+  sustainedComplaints: integer('sustained_complaints').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ============================================
+// Knowledge Base
+// ============================================
+
+export const knowledgeArticles = sqliteTable('knowledge_articles', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  slug: text('slug').notNull().unique(),
+  category: text('category', {
+    enum: ['know_your_rights', 'foia_guide', 'policy_explainer', 'case_study', 'faq'],
+  }).notNull(),
+  content: text('content').notNull(),
+  summary: text('summary'),
+  state: text('state'), // for state-specific guides
+  isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(false),
+  viewCount: integer('view_count').notNull().default(0),
+  createdBy: text('created_by').references(() => users.id),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});

@@ -1,0 +1,30 @@
+{
+  "recommendations": [
+    // Linters and Formatters
+    "biomejs.biome", // TypeScript/JavaScript linter and formatter (replaces ESLint + Prettier)
+    "charliermarsh.ruff", // Python linter and formatter
+    "rust-lang.rust-analyzer", // Rust language server
+    "editorconfig.editorconfig", // EditorConfig support
+
+    // Testing
+    "vitest.explorer", // Vitest test explorer
+
+    // Utilities
+    "sysoev.vscode-open-in-github", // Open files in GitHub
+    "usernamehw.errorlens", // Inline error messages
+    "wix.vscode-import-cost", // Display import sizes
+    "bradlc.vscode-tailwindcss", // Tailwind CSS IntelliSense
+    "prisma.prisma", // Prisma ORM support
+
+    // Git
+    "github.vscode-pull-request-github", // GitHub Pull Requests
+    "eamodio.gitlens" // GitLens
+  ],
+  "unwantedRecommendations": [
+    "dbaeumer.vscode-eslint", // Replaced by Biome
+    "esbenp.prettier-vscode", // Replaced by Biome
+    "ms-python.black-formatter", // Replaced by Ruff
+    "ms-python.pylint", // Replaced by Ruff
+    "ms-python.flake8" // Replaced by Ruff
+  ]
+}

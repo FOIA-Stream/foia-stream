@@ -1,5 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Base",
   "compilerOptions": {
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -29,9 +30,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true
-  },
-  "references": [{ "path": "apps/api" }, { "path": "packages/shared" }],
-  "exclude": ["node_modules", "**/node_modules/**", "apps/web"]
+    "forceConsistentCasingInFileNames": true
+  }
 }

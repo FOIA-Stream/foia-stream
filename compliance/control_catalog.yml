@@ -1,0 +1,1557 @@
+# FOIA Stream - Control Catalog
+# Version: 1.0
+# Last Updated: 2025-12-21
+# Status: Draft
+#
+# Scoring Scale:
+#   0 - Missing: No documented control, no implementation
+#   1 - Documented: Policy/procedure exists; partial implementation
+#   2 - Implemented: Control implemented and repeatable; evidence defined
+#   3 - Operating + Evidenced: Control operating; objective evidence exists
+#
+# Pass Thresholds:
+#   SOC 2 Type I: All in-scope controls ≥ 2
+#   SOC 2 Type II: All in-scope controls ≥ 3 for observation window
+#   ISO 27001: ISMS established and operating
+#   GDPR: Article 5 principles operationalized
+#   CCPA: Consumer rights operations exist
+---
+
+metadata:
+  organization: "FOIA Stream"
+  scope: "FOIA Stream Platform"
+  version: "1.0"
+  last_updated: "2025-12-21"
+  owner: "{{<compliance_owner>}}"
+  next_review: "{{<next_review_date>}}"
+
+# ============================================
+# FAMILY 1: GOVERNANCE, SCOPE & ISMS FOUNDATION
+# ============================================
+
+controls:
+  # --- Governance ---
+  - id: "GOV-01"
+    name: "Define Compliance Scope and System Boundaries"
+    family: "Governance"
+    objective: "Establish unambiguous in-scope systems, data types, and vendors"
+    mappings:
+      soc2_tsc: ["CC1.1", "CC1.2", "CC2.1"]
+      iso27001: ["4.1", "4.2", "4.3", "6.1"]
+      gdpr: ["Art5(2)", "Art24(1)"]
+      ccpa: ["1798.100", "1798.130"]
+      hipaa: []  # Not in scope
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Create compliance/scope.md with system boundaries"
+        - "Document data flow diagrams"
+        - "Identify all data categories and classifications"
+        - "Map vendor relationships"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Scope reconciles with vendor inventory"
+      - "Scope reconciles with production architecture"
+      - "All environments are documented"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/scope.md"
+          frequency: "annually"
+        - type: "document"
+          path: "compliance/system_overview.md"
+          frequency: "annually"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "Scope documented, needs annual review process"
+
+  - id: "GOV-02"
+    name: "Security and Privacy Roles Assignment"
+    family: "Governance"
+    objective: "Assign clear accountability for security and privacy functions"
+    mappings:
+      soc2_tsc: ["CC1.2", "CC1.3"]
+      iso27001: ["5.1", "5.3", "A.6.1.1"]
+      gdpr: ["Art37", "Art38", "Art39"]
+      ccpa: ["1798.135"]
+      hipaa: []
+    implementation:
+      status: "documented"
+      tasks:
+        - "Define Security Officer role and responsibilities"
+        - "Define Privacy Officer role (if GDPR applies)"
+        - "Document RACI matrix for security functions"
+        - "Communicate roles to organization"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Roles are documented and communicated"
+      - "Role holders are identified"
+      - "RACI matrix covers all security domains"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/roles_raci.md"
+          frequency: "annually"
+        - type: "record"
+          description: "Role assignment records"
+          frequency: "on_change"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+
+  - id: "GOV-03"
+    name: "Information Security Policy Set"
+    family: "Governance"
+    objective: "Establish comprehensive security and privacy policies"
+    mappings:
+      soc2_tsc: ["CC1.1", "CC5.1"]
+      iso27001: ["5.2", "A.5.1.1", "A.5.1.2"]
+      gdpr: ["Art24", "Art25", "Art32"]
+      ccpa: ["1798.100"]
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Create Access Control Policy"
+        - "Create Encryption Policy"
+        - "Create SDLC Security Policy"
+        - "Create Incident Response Policy"
+        - "Create Vendor Management Policy"
+        - "Create Data Retention Policy"
+        - "Version control all policies"
+        - "Establish annual review cycle"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "All required policies exist and are approved"
+      - "Policies are version controlled"
+      - "Policies are communicated to relevant personnel"
+      - "Annual review is scheduled"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/policies/"
+          frequency: "annually"
+        - type: "record"
+          description: "Policy acknowledgment records"
+          frequency: "annually"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+
+  - id: "GOV-04"
+    name: "Security Awareness Training"
+    family: "Governance"
+    objective: "Ensure all personnel understand security responsibilities"
+    mappings:
+      soc2_tsc: ["CC1.4", "CC2.2"]
+      iso27001: ["7.2", "7.3", "A.7.2.2"]
+      gdpr: ["Art39(1)(b)"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Develop security awareness training program"
+        - "Include FOIA-specific privacy training"
+        - "Track training completion"
+        - "Annual refresher training"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Training completion rate ≥ 95%"
+      - "New hires complete training within 30 days"
+      - "Annual refresher is completed"
+    evidence:
+      items:
+        - type: "report"
+          description: "Training completion records"
+          frequency: "quarterly"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 2: RISK MANAGEMENT
+# ============================================
+
+  - id: "RISK-01"
+    name: "Risk Assessment Process"
+    family: "Risk Management"
+    objective: "Identify, assess, and document security risks"
+    mappings:
+      soc2_tsc: ["CC3.1", "CC3.2", "CC3.3"]
+      iso27001: ["6.1.2", "8.2", "8.3"]
+      gdpr: ["Art32(2)", "Art35"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Create risk register template"
+        - "Conduct initial risk assessment"
+        - "Document risk treatment plans"
+        - "Assign risk owners"
+        - "Establish quarterly review cadence"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Risk register exists and is current"
+      - "All high risks have treatment plans"
+      - "Quarterly reviews are conducted"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/risk_register.yml"
+          frequency: "quarterly"
+        - type: "record"
+          description: "Risk review meeting minutes"
+          frequency: "quarterly"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "RISK-02"
+    name: "Risk Treatment and Acceptance"
+    family: "Risk Management"
+    objective: "Treat or accept identified risks with documented rationale"
+    mappings:
+      soc2_tsc: ["CC3.4"]
+      iso27001: ["6.1.3", "6.2"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Define risk treatment options (mitigate/accept/transfer/avoid)"
+        - "Document risk acceptance criteria"
+        - "Track remediation to closure"
+        - "Obtain sign-off for accepted risks"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Remediation items are tracked in ticketing system"
+      - "Risk acceptances have management approval"
+      - "Time-bound exceptions are reviewed"
+    evidence:
+      items:
+        - type: "ticket"
+          description: "Remediation tickets"
+          frequency: "continuous"
+        - type: "record"
+          description: "Risk acceptance sign-offs"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 3: DATA INVENTORY & CLASSIFICATION
+# ============================================
+
+  - id: "DATA-01"
+    name: "Data Inventory and Classification"
+    family: "Data Management"
+    objective: "Maintain accurate inventory of data categories and classifications"
+    mappings:
+      soc2_tsc: ["CC6.1"]
+      iso27001: ["A.8.1.1", "A.8.2.1"]
+      gdpr: ["Art30", "Art5(1)(c)"]
+      ccpa: ["1798.100(a)"]
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Document all data categories collected"
+        - "Classify data by sensitivity level"
+        - "Map data to purposes and lawful bases"
+        - "Document retention periods"
+        - "Automate schema scanning"
+      owner: "{{<data_owner>}}"
+    tests:
+      - "Inventory matches actual database schema"
+      - "All tables are classified"
+      - "Retention periods are defined"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/data_inventory.yml"
+          frequency: "quarterly"
+        - type: "report"
+          description: "Schema scan comparison"
+          frequency: "monthly"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+      notes: "Schema documented in db/schema.ts, needs formal inventory"
+
+  - id: "DATA-02"
+    name: "Data Flow Documentation"
+    family: "Data Management"
+    objective: "Document how data moves through the system"
+    mappings:
+      soc2_tsc: ["CC6.1"]
+      iso27001: ["A.8.1.1"]
+      gdpr: ["Art30", "Art35"]
+      ccpa: ["1798.100"]
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Create data flow diagrams for PII"
+        - "Document system boundaries"
+        - "Identify data at rest and in transit"
+        - "Map third-party data sharing"
+      owner: "{{<data_owner>}}"
+    tests:
+      - "Data flows match actual system behavior"
+      - "All integrations are documented"
+      - "PII flows are highlighted"
+    evidence:
+      items:
+        - type: "diagram"
+          path: "compliance/data_flows/"
+          frequency: "annually"
+        - type: "document"
+          path: "compliance/system_overview.md"
+          frequency: "annually"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+
+  - id: "DATA-03"
+    name: "Data Retention Enforcement"
+    family: "Data Management"
+    objective: "Enforce defined retention periods and secure deletion"
+    mappings:
+      soc2_tsc: ["CC6.5"]
+      iso27001: ["A.8.3.2"]
+      gdpr: ["Art5(1)(e)", "Art17"]
+      ccpa: ["1798.105"]
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Define retention schedule by data category"
+        - "Implement automated retention jobs"
+        - "Log deletion activities"
+        - "Test deletion completeness"
+      owner: "{{<data_owner>}}"
+    tests:
+      - "Retention jobs run on schedule"
+      - "Data older than retention period is deleted"
+      - "Deletion logs are available"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/retention_schedule.md"
+          frequency: "annually"
+        - type: "log"
+          description: "Retention job execution logs"
+          frequency: "monthly"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 4: IDENTITY & ACCESS MANAGEMENT
+# ============================================
+
+  - id: "IAM-01"
+    name: "User Authentication"
+    family: "Identity & Access Management"
+    objective: "Secure authentication for all users"
+    mappings:
+      soc2_tsc: ["CC6.1", "CC6.2"]
+      iso27001: ["A.9.2.1", "A.9.4.2"]
+      gdpr: ["Art5(1)(f)", "Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Implement password-based authentication"
+        - "Use Argon2id for password hashing"
+        - "Implement JWT-based sessions"
+        - "Session expiration and refresh"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Passwords are hashed with Argon2id"
+      - "JWTs expire appropriately"
+      - "Failed login attempts are logged"
+    evidence:
+      items:
+        - type: "code"
+          path: "src/services/auth.service.ts"
+          frequency: "on_change"
+        - type: "log"
+          description: "Authentication logs"
+          frequency: "continuous"
+    scoring:
+      current: 3
+      target_type1: 2
+      target_type2: 3
+      notes: "Argon2id + JWT implemented"
+
+  - id: "IAM-02"
+    name: "Multi-Factor Authentication"
+    family: "Identity & Access Management"
+    objective: "Require MFA for privileged and sensitive access"
+    mappings:
+      soc2_tsc: ["CC6.1"]
+      iso27001: ["A.9.4.2"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Implement TOTP-based MFA"
+        - "Require MFA for admin accounts"
+        - "Support MFA enrollment flow"
+        - "Recovery codes for MFA"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Admin accounts require MFA"
+      - "MFA enrollment flow works"
+      - "Recovery codes can be generated"
+    evidence:
+      items:
+        - type: "code"
+          path: "src/services/auth.service.ts"
+          frequency: "on_change"
+        - type: "config"
+          description: "MFA policy configuration"
+          frequency: "on_change"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+      notes: "Schema supports 2FA, implementation partial"
+
+  - id: "IAM-03"
+    name: "Role-Based Access Control"
+    family: "Identity & Access Management"
+    objective: "Enforce least privilege through RBAC"
+    mappings:
+      soc2_tsc: ["CC6.1", "CC6.3"]
+      iso27001: ["A.9.1.2", "A.9.2.3"]
+      gdpr: ["Art5(1)(f)", "Art25"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Define user roles and permissions"
+        - "Implement role-based authorization"
+        - "Document role definitions"
+        - "Regular access reviews"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Each API endpoint checks authorization"
+      - "Users cannot access unauthorized resources"
+      - "Role escalation requires approval"
+    evidence:
+      items:
+        - type: "code"
+          path: "src/middleware/auth.middleware.ts"
+          frequency: "on_change"
+        - type: "document"
+          path: "compliance/role_definitions.md"
+          frequency: "annually"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "7 roles defined in schema"
+
+  - id: "IAM-04"
+    name: "Access Reviews"
+    family: "Identity & Access Management"
+    objective: "Periodically review user access rights"
+    mappings:
+      soc2_tsc: ["CC6.2", "CC6.3"]
+      iso27001: ["A.9.2.5"]
+      gdpr: ["Art5(1)(f)"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Establish quarterly access review process"
+        - "Generate access review reports"
+        - "Document and track review completion"
+        - "Revoke unused access"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Access reviews completed quarterly"
+      - "Dormant accounts are disabled"
+      - "Excessive permissions are removed"
+    evidence:
+      items:
+        - type: "report"
+          description: "Access review reports"
+          frequency: "quarterly"
+        - type: "ticket"
+          description: "Access modification tickets"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "IAM-05"
+    name: "User Deprovisioning"
+    family: "Identity & Access Management"
+    objective: "Promptly revoke access when no longer needed"
+    mappings:
+      soc2_tsc: ["CC6.2"]
+      iso27001: ["A.9.2.6"]
+      gdpr: ["Art17"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Define offboarding checklist"
+        - "Implement account deactivation"
+        - "Revoke active sessions on deactivation"
+        - "Document deprovisioning timeline"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Terminated users disabled within 24 hours"
+      - "Active sessions are revoked"
+      - "Deprovisioning is logged"
+    evidence:
+      items:
+        - type: "log"
+          description: "Account deactivation logs"
+          frequency: "continuous"
+        - type: "report"
+          description: "Offboarding completion records"
+          frequency: "as_needed"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 5: CRYPTOGRAPHY & KEY MANAGEMENT
+# ============================================
+
+  - id: "CRYPTO-01"
+    name: "Encryption in Transit"
+    family: "Cryptography"
+    objective: "Encrypt all data in transit using TLS"
+    mappings:
+      soc2_tsc: ["CC6.1", "CC6.7"]
+      iso27001: ["A.10.1.1", "A.13.2.1"]
+      gdpr: ["Art32(1)(a)"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Enforce HTTPS for all endpoints"
+        - "Configure TLS 1.2+ minimum"
+        - "Implement HSTS"
+        - "Monitor certificate expiration"
+      owner: "{{<infrastructure_owner>}}"
+    tests:
+      - "All endpoints accessible only via HTTPS"
+      - "TLS 1.2 or higher enforced"
+      - "HSTS header present"
+    evidence:
+      items:
+        - type: "config"
+          description: "TLS configuration"
+          frequency: "on_change"
+        - type: "report"
+          description: "SSL Labs scan results"
+          frequency: "quarterly"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+      notes: "Depends on deployment environment"
+
+  - id: "CRYPTO-02"
+    name: "Encryption at Rest"
+    family: "Cryptography"
+    objective: "Encrypt sensitive data at rest"
+    mappings:
+      soc2_tsc: ["CC6.1", "CC6.7"]
+      iso27001: ["A.10.1.1", "A.8.2.3"]
+      gdpr: ["Art32(1)(a)"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Enable disk encryption for database"
+        - "Encrypt file uploads at rest"
+        - "Document encryption algorithms"
+        - "Key rotation procedures"
+      owner: "{{<infrastructure_owner>}}"
+    tests:
+      - "Database files are encrypted"
+      - "Upload directory is encrypted"
+      - "Encryption keys are protected"
+    evidence:
+      items:
+        - type: "config"
+          description: "Encryption configuration"
+          frequency: "on_change"
+        - type: "document"
+          description: "Encryption procedures"
+          frequency: "annually"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "CRYPTO-03"
+    name: "Password Hashing Standards"
+    family: "Cryptography"
+    objective: "Use strong password hashing algorithms"
+    mappings:
+      soc2_tsc: ["CC6.1"]
+      iso27001: ["A.10.1.1"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Use Argon2id for password hashing"
+        - "Configure memory/time/parallelism parameters"
+        - "Never store plaintext passwords"
+        - "Document hashing configuration"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Argon2id is used for all passwords"
+      - "Parameters meet security recommendations"
+      - "No plaintext passwords in database"
+    evidence:
+      items:
+        - type: "code"
+          path: "src/services/auth.service.ts"
+          frequency: "on_change"
+    scoring:
+      current: 3
+      target_type1: 2
+      target_type2: 3
+      notes: "Argon2id with secure parameters"
+
+  - id: "CRYPTO-04"
+    name: "Secrets Management"
+    family: "Cryptography"
+    objective: "Securely manage secrets and prevent exposure"
+    mappings:
+      soc2_tsc: ["CC6.1"]
+      iso27001: ["A.10.1.2"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Use environment variables for secrets"
+        - "Implement secrets scanning in CI"
+        - "Use secrets manager for production"
+        - "Rotate secrets periodically"
+      owner: "{{<infrastructure_owner>}}"
+    tests:
+      - "No secrets in source code"
+      - "Secrets scanning is active"
+      - "JWT secret is ≥32 characters"
+    evidence:
+      items:
+        - type: "config"
+          path: ".env.example"
+          frequency: "on_change"
+        - type: "report"
+          description: "Secrets scan results"
+          frequency: "per_commit"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+      notes: "Env vars used, needs secrets scanning"
+
+# ============================================
+# FAMILY 6: SECURE SDLC & CHANGE MANAGEMENT
+# ============================================
+
+  - id: "SDLC-01"
+    name: "Version Control and Branch Protection"
+    family: "Secure SDLC"
+    objective: "Secure source code management practices"
+    mappings:
+      soc2_tsc: ["CC8.1"]
+      iso27001: ["A.12.1.2", "A.14.2.2"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Use Git for version control"
+        - "Protect main/master branch"
+        - "Require PR reviews for merges"
+        - "Sign commits (optional)"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Branch protection rules are enabled"
+      - "Direct pushes to main are blocked"
+      - "PRs require at least 1 approval"
+    evidence:
+      items:
+        - type: "config"
+          description: "Branch protection settings"
+          frequency: "on_change"
+        - type: "log"
+          description: "PR merge history"
+          frequency: "continuous"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+      notes: "Git used, branch protection not configured"
+
+  - id: "SDLC-02"
+    name: "Code Review Requirements"
+    family: "Secure SDLC"
+    objective: "All code changes reviewed before merge"
+    mappings:
+      soc2_tsc: ["CC8.1"]
+      iso27001: ["A.14.2.2"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Require PR approval for all changes"
+        - "Define code review checklist"
+        - "Security-focused review for sensitive changes"
+        - "Document review expectations"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "All production merges have PR approval"
+      - "Review comments are addressed"
+      - "Sensitive changes get security review"
+    evidence:
+      items:
+        - type: "log"
+          description: "PR approval records"
+          frequency: "per_change"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "SDLC-03"
+    name: "Automated Security Testing in CI"
+    family: "Secure SDLC"
+    objective: "Integrate security testing into CI pipeline"
+    mappings:
+      soc2_tsc: ["CC7.1", "CC8.1"]
+      iso27001: ["A.14.2.8"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Add static analysis (SAST)"
+        - "Add dependency vulnerability scanning"
+        - "Add secrets detection"
+        - "Block merges on critical findings"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "CI runs on every PR"
+      - "Security gates block critical issues"
+      - "Scan results are reviewed"
+    evidence:
+      items:
+        - type: "config"
+          path: ".github/workflows/"
+          frequency: "on_change"
+        - type: "report"
+          description: "CI security scan results"
+          frequency: "per_build"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+      notes: "Vitest tests exist, security scans needed"
+
+  - id: "SDLC-04"
+    name: "Dependency Management"
+    family: "Secure SDLC"
+    objective: "Track and secure third-party dependencies"
+    mappings:
+      soc2_tsc: ["CC7.1"]
+      iso27001: ["A.14.2.7"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Maintain package lock file"
+        - "Scan dependencies for vulnerabilities"
+        - "Update dependencies regularly"
+        - "Review new dependency additions"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Lock file is committed"
+      - "No critical vulnerabilities in dependencies"
+      - "Dependencies updated within SLA"
+    evidence:
+      items:
+        - type: "file"
+          path: "bun.lock"
+          frequency: "per_change"
+        - type: "report"
+          description: "Dependency audit report"
+          frequency: "weekly"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "bun.lock maintained"
+
+  - id: "SDLC-05"
+    name: "Change Management"
+    family: "Secure SDLC"
+    objective: "Controlled and documented changes to production"
+    mappings:
+      soc2_tsc: ["CC8.1"]
+      iso27001: ["A.12.1.2", "A.14.2.2"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Document change management process"
+        - "Require change tickets for production deploys"
+        - "Link deployments to approved changes"
+        - "Rollback procedures"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Every production deploy has change record"
+      - "Change approvals are documented"
+      - "Rollback capability exists"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/runbooks/change_management.md"
+          frequency: "annually"
+        - type: "ticket"
+          description: "Change tickets"
+          frequency: "per_deploy"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 7: VULNERABILITY MANAGEMENT
+# ============================================
+
+  - id: "VULN-01"
+    name: "Vulnerability Scanning"
+    family: "Vulnerability Management"
+    objective: "Regular scanning for security vulnerabilities"
+    mappings:
+      soc2_tsc: ["CC7.1"]
+      iso27001: ["A.12.6.1"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Implement automated vulnerability scanning"
+        - "Define scanning frequency"
+        - "Establish severity classification"
+        - "Track vulnerabilities to remediation"
+      owner: "{{<security_owner>}}"
+    tests:
+      - "Scans run at defined frequency"
+      - "Critical vulnerabilities addressed within SLA"
+      - "Vulnerability trends are tracked"
+    evidence:
+      items:
+        - type: "report"
+          description: "Vulnerability scan reports"
+          frequency: "weekly"
+        - type: "ticket"
+          description: "Remediation tickets"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "VULN-02"
+    name: "Vulnerability Remediation SLAs"
+    family: "Vulnerability Management"
+    objective: "Timely remediation based on severity"
+    mappings:
+      soc2_tsc: ["CC7.2"]
+      iso27001: ["A.12.6.1"]
+      gdpr: ["Art32"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Define remediation SLAs by severity"
+        - "Track SLA compliance"
+        - "Escalation process for overdue items"
+        - "Exception approval process"
+      owner: "{{<security_owner>}}"
+    tests:
+      - "Critical: 7 days | High: 30 days | Medium: 90 days"
+      - "SLA compliance ≥ 90%"
+      - "Exceptions are time-bound and approved"
+    evidence:
+      items:
+        - type: "report"
+          description: "SLA compliance report"
+          frequency: "monthly"
+        - type: "record"
+          description: "Exception approvals"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 8: LOGGING & MONITORING
+# ============================================
+
+  - id: "LOG-01"
+    name: "Security Event Logging"
+    family: "Logging & Monitoring"
+    objective: "Log security-relevant events"
+    mappings:
+      soc2_tsc: ["CC7.2", "CC7.3"]
+      iso27001: ["A.12.4.1", "A.12.4.3"]
+      gdpr: ["Art5(2)", "Art30"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Log authentication events"
+        - "Log authorization failures"
+        - "Log data access events"
+        - "Log administrative actions"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "Login attempts are logged"
+      - "Failed access attempts are logged"
+      - "Admin actions are logged"
+    evidence:
+      items:
+        - type: "code"
+          path: "src/db/schema.ts"
+          description: "audit_logs table"
+          frequency: "on_change"
+        - type: "log"
+          description: "Sample audit log entries"
+          frequency: "continuous"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "audit_logs table implemented"
+
+  - id: "LOG-02"
+    name: "Request Logging"
+    family: "Logging & Monitoring"
+    objective: "Log all API requests for troubleshooting and audit"
+    mappings:
+      soc2_tsc: ["CC7.2"]
+      iso27001: ["A.12.4.1"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Enable request logging middleware"
+        - "Log request method, path, status, duration"
+        - "Include correlation IDs"
+        - "Configure log retention"
+      owner: "{{<engineering_owner>}}"
+    tests:
+      - "All requests are logged"
+      - "Logs include required fields"
+      - "PII is not logged inappropriately"
+    evidence:
+      items:
+        - type: "code"
+          path: "src/app.ts"
+          description: "Logger middleware"
+          frequency: "on_change"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "Hono logger middleware enabled"
+
+  - id: "LOG-03"
+    name: "Log Retention and Integrity"
+    family: "Logging & Monitoring"
+    objective: "Protect logs from tampering and ensure retention"
+    mappings:
+      soc2_tsc: ["CC7.3"]
+      iso27001: ["A.12.4.2", "A.12.4.3"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "partial"
+      tasks:
+        - "Define log retention period (min 1 year)"
+        - "Centralize logs in secure storage"
+        - "Implement log integrity controls"
+        - "Restrict log deletion access"
+      owner: "{{<infrastructure_owner>}}"
+    tests:
+      - "Logs retained for defined period"
+      - "Logs cannot be modified by application"
+      - "Log access is restricted"
+    evidence:
+      items:
+        - type: "config"
+          description: "Log retention configuration"
+          frequency: "annually"
+    scoring:
+      current: 1
+      target_type1: 2
+      target_type2: 3
+
+  - id: "LOG-04"
+    name: "Security Alerting"
+    family: "Logging & Monitoring"
+    objective: "Alert on security-relevant events"
+    mappings:
+      soc2_tsc: ["CC7.3"]
+      iso27001: ["A.12.4.1"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Define alerting rules for security events"
+        - "Configure alert notifications"
+        - "Document alert response procedures"
+        - "Test alert pipeline"
+      owner: "{{<security_owner>}}"
+    tests:
+      - "Alerts fire for defined conditions"
+      - "Alerts reach on-call personnel"
+      - "Alert response SLAs are met"
+    evidence:
+      items:
+        - type: "config"
+          description: "Alert rules"
+          frequency: "on_change"
+        - type: "log"
+          description: "Alert history"
+          frequency: "continuous"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 9: INCIDENT RESPONSE
+# ============================================
+
+  - id: "IR-01"
+    name: "Incident Response Plan"
+    family: "Incident Response"
+    objective: "Documented procedures for security incident handling"
+    mappings:
+      soc2_tsc: ["CC7.4", "CC7.5"]
+      iso27001: ["A.16.1.1", "A.16.1.5"]
+      gdpr: ["Art33", "Art34"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Create incident response plan"
+        - "Define incident severity levels"
+        - "Identify incident response team"
+        - "Establish communication channels"
+      owner: "{{<security_owner>}}"
+    tests:
+      - "IR plan is documented and accessible"
+      - "Team roles are assigned"
+      - "Contact information is current"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/runbooks/incident_response.md"
+          frequency: "annually"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "IR-02"
+    name: "Incident Response Testing"
+    family: "Incident Response"
+    objective: "Regular testing of incident response capabilities"
+    mappings:
+      soc2_tsc: ["CC7.4"]
+      iso27001: ["A.16.1.1"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Conduct tabletop exercises annually"
+        - "Document exercise findings"
+        - "Track corrective actions"
+        - "Update plan based on lessons learned"
+      owner: "{{<security_owner>}}"
+    tests:
+      - "Tabletop exercise completed annually"
+      - "Findings documented and tracked"
+      - "Plan updated based on findings"
+    evidence:
+      items:
+        - type: "report"
+          description: "Tabletop exercise report"
+          frequency: "annually"
+        - type: "ticket"
+          description: "Corrective action items"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "IR-03"
+    name: "Breach Notification Procedures"
+    family: "Incident Response"
+    objective: "Comply with breach notification requirements"
+    mappings:
+      soc2_tsc: ["CC7.5"]
+      iso27001: ["A.16.1.6"]
+      gdpr: ["Art33", "Art34"]
+      ccpa: ["1798.82"]
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Define breach assessment criteria"
+        - "Document notification timelines (72h GDPR)"
+        - "Create notification templates"
+        - "Identify regulatory contacts"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Breach criteria documented"
+      - "Templates ready for use"
+      - "Regulatory contacts identified"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/runbooks/breach_notification.md"
+          frequency: "annually"
+        - type: "record"
+          description: "Breach notification decisions"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 10: VENDOR MANAGEMENT
+# ============================================
+
+  - id: "VEND-01"
+    name: "Vendor Inventory"
+    family: "Vendor Management"
+    objective: "Maintain complete inventory of third-party vendors"
+    mappings:
+      soc2_tsc: ["CC9.2"]
+      iso27001: ["A.15.1.1"]
+      gdpr: ["Art28", "Art30"]
+      ccpa: ["1798.100"]
+      hipaa: []
+    implementation:
+      status: "implemented"
+      tasks:
+        - "Inventory all vendors and dependencies"
+        - "Classify vendors by tier"
+        - "Document data shared with vendors"
+        - "Track vendor contracts"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Vendor inventory is complete"
+      - "All vendors are classified"
+      - "Data sharing is documented"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/inventory/vendors.yml"
+          frequency: "quarterly"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "vendors.yml created"
+
+  - id: "VEND-02"
+    name: "Vendor Security Assessment"
+    family: "Vendor Management"
+    objective: "Assess security posture of critical vendors"
+    mappings:
+      soc2_tsc: ["CC9.2"]
+      iso27001: ["A.15.2.1", "A.15.2.2"]
+      gdpr: ["Art28"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Create vendor assessment questionnaire"
+        - "Review vendor SOC 2/ISO certs"
+        - "Document assessment findings"
+        - "Annual reassessment for critical vendors"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "Critical vendors have security assessment"
+      - "Findings are documented"
+      - "Annual reviews completed"
+    evidence:
+      items:
+        - type: "record"
+          description: "Vendor assessment records"
+          frequency: "annually"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "VEND-03"
+    name: "Data Processing Agreements"
+    family: "Vendor Management"
+    objective: "Appropriate contracts for data processors"
+    mappings:
+      soc2_tsc: ["CC9.2"]
+      iso27001: ["A.15.1.2"]
+      gdpr: ["Art28"]
+      ccpa: ["1798.100"]
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Identify vendors requiring DPA"
+        - "Execute DPAs with all data processors"
+        - "Include GDPR standard clauses if needed"
+        - "Track agreement status"
+      owner: "{{<compliance_owner>}}"
+    tests:
+      - "All data processors have DPA"
+      - "DPAs include required clauses"
+      - "Agreement status is tracked"
+    evidence:
+      items:
+        - type: "record"
+          description: "DPA tracker"
+          frequency: "quarterly"
+        - type: "document"
+          description: "Executed DPAs"
+          frequency: "as_needed"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# FAMILY 11: PRIVACY RIGHTS OPERATIONS
+# ============================================
+
+  - id: "PRIV-01"
+    name: "Privacy Notice"
+    family: "Privacy Operations"
+    objective: "Transparent disclosure of data practices"
+    mappings:
+      soc2_tsc: ["P1.1"]
+      iso27001: []
+      gdpr: ["Art13", "Art14"]
+      ccpa: ["1798.100", "1798.130"]
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Create comprehensive privacy policy"
+        - "Include GDPR required disclosures"
+        - "Include CCPA required disclosures"
+        - "Make accessible from application"
+      owner: "{{<privacy_owner>}}"
+    tests:
+      - "Privacy policy is published"
+      - "Covers all required elements"
+      - "Accessible from application"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/privacy/privacy_policy.md"
+          frequency: "annually"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "PRIV-02"
+    name: "Data Subject Rights - Access"
+    family: "Privacy Operations"
+    objective: "Enable data access requests (GDPR Art 15, CCPA 1798.100)"
+    mappings:
+      soc2_tsc: ["P6.1"]
+      iso27001: []
+      gdpr: ["Art15"]
+      ccpa: ["1798.100", "1798.110"]
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Create DSR intake process"
+        - "Implement identity verification"
+        - "Build data export functionality"
+        - "Track response within SLA (30 days)"
+      owner: "{{<privacy_owner>}}"
+    tests:
+      - "Access requests can be submitted"
+      - "Responses within 30 days"
+      - "Complete data export provided"
+    evidence:
+      items:
+        - type: "document"
+          path: "compliance/runbooks/dsr.md"
+          frequency: "annually"
+        - type: "log"
+          description: "DSR fulfillment logs"
+          frequency: "continuous"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "PRIV-03"
+    name: "Data Subject Rights - Deletion"
+    family: "Privacy Operations"
+    objective: "Enable deletion requests (GDPR Art 17, CCPA 1798.105)"
+    mappings:
+      soc2_tsc: ["P6.2"]
+      iso27001: []
+      gdpr: ["Art17"]
+      ccpa: ["1798.105"]
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Implement account deletion workflow"
+        - "Cascade deletion to related data"
+        - "Handle retention exceptions"
+        - "Confirm deletion to requestor"
+      owner: "{{<privacy_owner>}}"
+    tests:
+      - "Deletion requests processed within SLA"
+      - "Data properly cascaded"
+      - "Confirmation sent"
+    evidence:
+      items:
+        - type: "log"
+          description: "Deletion fulfillment logs"
+          frequency: "continuous"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "PRIV-04"
+    name: "Data Subject Rights - Portability"
+    family: "Privacy Operations"
+    objective: "Enable data portability (GDPR Art 20)"
+    mappings:
+      soc2_tsc: ["P6.3"]
+      iso27001: []
+      gdpr: ["Art20"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Export data in machine-readable format"
+        - "Include all user-provided data"
+        - "Support JSON/CSV export"
+      owner: "{{<privacy_owner>}}"
+    tests:
+      - "Data export in portable format"
+      - "Includes required data elements"
+    evidence:
+      items:
+        - type: "log"
+          description: "Export fulfillment logs"
+          frequency: "continuous"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "PRIV-05"
+    name: "CCPA Opt-Out Rights"
+    family: "Privacy Operations"
+    objective: "Enable opt-out of sale/sharing (CCPA 1798.120)"
+    mappings:
+      soc2_tsc: []
+      iso27001: []
+      gdpr: []
+      ccpa: ["1798.120", "1798.135"]
+      hipaa: []
+    implementation:
+      status: "not_applicable"
+      tasks:
+        - "Determine if data 'sold' or 'shared'"
+        - "If applicable, implement opt-out mechanism"
+        - "'Do Not Sell' link if required"
+      owner: "{{<privacy_owner>}}"
+    tests:
+      - "N/A if no sale/sharing occurs"
+    evidence:
+      items:
+        - type: "document"
+          description: "Sale/sharing determination"
+          frequency: "annually"
+    scoring:
+      current: 2
+      target_type1: 2
+      target_type2: 3
+      notes: "No sale/sharing of personal data"
+
+# ============================================
+# FAMILY 12: BUSINESS CONTINUITY
+# ============================================
+
+  - id: "BCP-01"
+    name: "Backup and Recovery"
+    family: "Business Continuity"
+    objective: "Regular backups with tested recovery"
+    mappings:
+      soc2_tsc: ["A1.2"]
+      iso27001: ["A.12.3.1"]
+      gdpr: ["Art32(1)(c)"]
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Implement automated backups"
+        - "Define backup frequency"
+        - "Store backups securely (off-site)"
+        - "Test recovery quarterly"
+      owner: "{{<infrastructure_owner>}}"
+    tests:
+      - "Backups run on schedule"
+      - "Recovery tested quarterly"
+      - "RPO/RTO requirements met"
+    evidence:
+      items:
+        - type: "log"
+          description: "Backup execution logs"
+          frequency: "daily"
+        - type: "report"
+          description: "Recovery test results"
+          frequency: "quarterly"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+  - id: "BCP-02"
+    name: "Availability Monitoring"
+    family: "Business Continuity"
+    objective: "Monitor system availability and uptime"
+    mappings:
+      soc2_tsc: ["A1.1"]
+      iso27001: ["A.12.1.3"]
+      gdpr: []
+      ccpa: []
+      hipaa: []
+    implementation:
+      status: "not_started"
+      tasks:
+        - "Implement uptime monitoring"
+        - "Configure availability alerts"
+        - "Track uptime metrics"
+        - "Define SLAs"
+      owner: "{{<infrastructure_owner>}}"
+    tests:
+      - "Monitoring is active"
+      - "Alerts fire on outages"
+      - "Uptime meets SLA"
+    evidence:
+      items:
+        - type: "report"
+          description: "Availability reports"
+          frequency: "monthly"
+    scoring:
+      current: 0
+      target_type1: 2
+      target_type2: 3
+
+# ============================================
+# SUMMARY STATISTICS
+# ============================================
+
+summary:
+  total_controls: 42
+  by_score:
+    score_0_missing: 22
+    score_1_documented: 8
+    score_2_implemented: 9
+    score_3_operating: 3
+  by_family:
+    governance: 4
+    risk_management: 2
+    data_management: 3
+    identity_access: 5
+    cryptography: 4
+    secure_sdlc: 5
+    vulnerability: 2
+    logging: 4
+    incident_response: 3
+    vendor_management: 3
+    privacy: 5
+    business_continuity: 2
+  readiness:
+    soc2_type1: "NOT READY - 22 controls below threshold"
+    soc2_type2: "NOT READY - 39 controls below threshold"
+    iso27001: "NOT READY - ISMS not established"
+    gdpr: "NOT READY - Privacy rights not operationalized"
+    ccpa: "NOT READY - Consumer rights not operationalized"

@@ -1,0 +1,849 @@
+# Evidence Collection Plan
+# FOIA Stream Compliance Evidence Requirements
+# Version: 1.0
+# Last Updated: 2025-01-XX
+
+---
+metadata:
+  document_owner: Security & Compliance
+  review_frequency: quarterly
+  storage_location: compliance/evidence/
+  retention_period: 7_years
+  classification: internal
+
+---
+# Evidence Categories
+
+evidence_types:
+  - id: config
+    name: Configuration Evidence
+    description: Screenshots, exports, or documentation of system configurations
+    format: [screenshot, json, yaml, pdf]
+
+  - id: log
+    name: Log Evidence
+    description: Audit logs, system logs, and activity records
+    format: [json, csv, log]
+
+  - id: report
+    name: Report Evidence
+    description: Generated reports, dashboards, and summaries
+    format: [pdf, xlsx, html]
+
+  - id: policy
+    name: Policy Document
+    description: Formal policies, procedures, and standards
+    format: [md, pdf, docx]
+
+  - id: ticket
+    name: Ticket/Record
+    description: Change requests, incidents, access requests
+    format: [json, pdf, screenshot]
+
+  - id: test
+    name: Test Results
+    description: Security scans, penetration tests, audit results
+    format: [json, pdf, html]
+
+  - id: training
+    name: Training Record
+    description: Training completion certificates and attendance
+    format: [pdf, csv]
+
+---
+# Access Control Evidence
+
+access_control:
+
+  - control_id: AC-1
+    control_name: Access Control Policy
+    evidence:
+      - type: policy
+        description: Access control policy document
+        filename: policies/access-control-policy.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: AC-2
+    control_name: Account Management
+    evidence:
+      - type: config
+        description: User table export showing all accounts
+        filename: evidence/ac-2/user-accounts-{date}.json
+        frequency: quarterly
+        owner: IT Admin
+        collection_method: |
+          SELECT id, email, role, is_active, created_at, last_login_at
+          FROM users
+
+      - type: ticket
+        description: User provisioning/deprovisioning requests
+        filename: evidence/ac-2/access-requests-{quarter}.pdf
+        frequency: quarterly
+        owner: IT Admin
+
+      - type: log
+        description: Account creation and modification logs
+        filename: evidence/ac-2/account-audit-{date}.json
+        frequency: monthly
+        owner: Security Team
+        collection_method: |
+          SELECT * FROM audit_logs
+          WHERE entity_type = 'user'
+          AND action IN ('CREATE', 'UPDATE', 'DELETE')
+
+  - control_id: AC-3
+    control_name: Role-Based Access Control
+    evidence:
+      - type: config
+        description: Role definitions and permissions matrix
+        filename: evidence/ac-3/role-permissions-{date}.md
+        frequency: quarterly
+        owner: Security Team
+
+      - type: config
+        description: Database schema showing role constraints
+        filename: evidence/ac-3/schema-roles.sql
+        frequency: per_change
+        owner: Engineering
+
+  - control_id: AC-4
+    control_name: Least Privilege
+    evidence:
+      - type: report
+        description: User role distribution report
+        filename: evidence/ac-4/role-distribution-{date}.json
+        frequency: quarterly
+        owner: Security Team
+        collection_method: |
+          SELECT role, COUNT(*) as count
+          FROM users
+          GROUP BY role
+
+  - control_id: AC-5
+    control_name: Session Management
+    evidence:
+      - type: config
+        description: JWT configuration settings
+        filename: evidence/ac-5/jwt-config-{date}.json
+        frequency: quarterly
+        owner: Engineering
+
+      - type: log
+        description: Session expiration and termination logs
+        filename: evidence/ac-5/session-audit-{date}.json
+        frequency: monthly
+        owner: Security Team
+
+  - control_id: AC-6
+    control_name: JWT Token Security
+    evidence:
+      - type: config
+        description: JWT signing algorithm and key rotation schedule
+        filename: evidence/ac-6/jwt-security-config.md
+        frequency: quarterly
+        owner: Engineering
+
+  - control_id: AC-7
+    control_name: Failed Login Lockout
+    evidence:
+      - type: config
+        description: Rate limiting configuration
+        filename: evidence/ac-7/rate-limit-config-{date}.json
+        frequency: quarterly
+        owner: Engineering
+
+      - type: log
+        description: Failed login attempts log
+        filename: evidence/ac-7/failed-logins-{date}.json
+        frequency: monthly
+        owner: Security Team
+
+  - control_id: AC-8
+    control_name: API Rate Limiting
+    evidence:
+      - type: config
+        description: Rate limiting middleware configuration
+        filename: evidence/ac-8/rate-limit-settings.json
+        frequency: quarterly
+        owner: Engineering
+
+      - type: log
+        description: Rate limit violations log
+        filename: evidence/ac-8/rate-limit-violations-{date}.json
+        frequency: monthly
+        owner: Security Team
+
+  - control_id: AC-9
+    control_name: Request Access Control
+    evidence:
+      - type: config
+        description: Request visibility rules documentation
+        filename: evidence/ac-9/request-access-rules.md
+        frequency: quarterly
+        owner: Engineering
+
+---
+# Audit & Accountability Evidence
+
+audit_accountability:
+
+  - control_id: AU-1
+    control_name: Audit Policy
+    evidence:
+      - type: policy
+        description: Audit and accountability policy
+        filename: policies/audit-policy.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: AU-2
+    control_name: Request Audit Trail
+    evidence:
+      - type: log
+        description: Sample audit log entries for FOIA requests
+        filename: evidence/au-2/request-audit-sample-{date}.json
+        frequency: monthly
+        owner: Security Team
+        collection_method: |
+          SELECT * FROM audit_logs
+          WHERE entity_type = 'foia_request'
+          ORDER BY created_at DESC
+          LIMIT 100
+
+      - type: config
+        description: Audit log schema and captured fields
+        filename: evidence/au-2/audit-schema.sql
+        frequency: per_change
+        owner: Engineering
+
+  - control_id: AU-3
+    control_name: User Action Logging
+    evidence:
+      - type: log
+        description: User action audit log sample
+        filename: evidence/au-3/user-actions-{date}.json
+        frequency: monthly
+        owner: Security Team
+        collection_method: |
+          SELECT * FROM audit_logs
+          WHERE user_id IS NOT NULL
+          ORDER BY created_at DESC
+          LIMIT 100
+
+  - control_id: AU-4
+    control_name: Audit Log Retention
+    evidence:
+      - type: config
+        description: Log retention policy and configuration
+        filename: evidence/au-4/retention-config.md
+        frequency: quarterly
+        owner: Operations
+
+      - type: report
+        description: Log storage utilization report
+        filename: evidence/au-4/log-storage-{date}.json
+        frequency: monthly
+        owner: Operations
+
+  - control_id: AU-5
+    control_name: Audit Log Protection
+    evidence:
+      - type: config
+        description: Database permissions on audit_logs table
+        filename: evidence/au-5/audit-permissions.sql
+        frequency: quarterly
+        owner: Database Admin
+
+  - control_id: AU-6
+    control_name: Security Monitoring
+    evidence:
+      - type: report
+        description: Security monitoring dashboard screenshots
+        filename: evidence/au-6/monitoring-dashboard-{date}.png
+        frequency: monthly
+        owner: Security Team
+
+      - type: log
+        description: Security alert samples
+        filename: evidence/au-6/security-alerts-{date}.json
+        frequency: monthly
+        owner: Security Team
+
+---
+# Configuration Management Evidence
+
+configuration_management:
+
+  - control_id: CM-1
+    control_name: Configuration Policy
+    evidence:
+      - type: policy
+        description: Configuration management policy
+        filename: policies/config-management-policy.md
+        frequency: annual
+        owner: Engineering
+
+  - control_id: CM-2
+    control_name: Baseline Configuration
+    evidence:
+      - type: config
+        description: System baseline configuration files
+        filename: evidence/cm-2/baseline-config-{date}.tar.gz
+        frequency: quarterly
+        owner: Engineering
+        contents:
+          - tsconfig.json
+          - drizzle.config.ts
+          - package.json
+          - .env.example
+
+  - control_id: CM-3
+    control_name: Change Control
+    evidence:
+      - type: ticket
+        description: Git commit log and PR history
+        filename: evidence/cm-3/change-log-{quarter}.md
+        frequency: quarterly
+        owner: Engineering
+        collection_method: |
+          git log --since="3 months ago" --pretty=format:"%h %ad %s" --date=short
+
+      - type: config
+        description: Branch protection rules
+        filename: evidence/cm-3/branch-protection-{date}.json
+        frequency: quarterly
+        owner: Engineering
+
+  - control_id: CM-4
+    control_name: Security Impact Analysis
+    evidence:
+      - type: report
+        description: Security review for significant changes
+        filename: evidence/cm-4/security-reviews-{quarter}.pdf
+        frequency: quarterly
+        owner: Security Team
+
+  - control_id: CM-5
+    control_name: Access Restrictions for Change
+    evidence:
+      - type: config
+        description: Repository access controls
+        filename: evidence/cm-5/repo-access-{date}.json
+        frequency: quarterly
+        owner: Engineering
+
+  - control_id: CM-6
+    control_name: Environment Separation
+    evidence:
+      - type: config
+        description: Environment configuration differences
+        filename: evidence/cm-6/env-comparison-{date}.md
+        frequency: quarterly
+        owner: Engineering
+
+---
+# Identification & Authentication Evidence
+
+identification_authentication:
+
+  - control_id: IA-1
+    control_name: I&A Policy
+    evidence:
+      - type: policy
+        description: Authentication policy document
+        filename: policies/authentication-policy.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: IA-2
+    control_name: User Identification
+    evidence:
+      - type: config
+        description: User schema and unique identifier constraints
+        filename: evidence/ia-2/user-schema.sql
+        frequency: per_change
+        owner: Engineering
+
+  - control_id: IA-3
+    control_name: Password Security
+    evidence:
+      - type: config
+        description: Password hashing configuration (argon2)
+        filename: evidence/ia-3/password-config.md
+        frequency: quarterly
+        owner: Engineering
+
+      - type: test
+        description: Password policy compliance test results
+        filename: evidence/ia-3/password-tests-{date}.json
+        frequency: quarterly
+        owner: Security Team
+
+  - control_id: IA-4
+    control_name: Multi-Factor Authentication
+    evidence:
+      - type: config
+        description: MFA implementation status
+        filename: evidence/ia-4/mfa-config-{date}.md
+        frequency: quarterly
+        owner: Engineering
+
+      - type: report
+        description: MFA adoption metrics
+        filename: evidence/ia-4/mfa-adoption-{date}.json
+        frequency: monthly
+        owner: Security Team
+        collection_method: |
+          SELECT
+            COUNT(*) as total_users,
+            SUM(CASE WHEN two_factor_enabled = 1 THEN 1 ELSE 0 END) as mfa_enabled
+          FROM users
+
+  - control_id: IA-5
+    control_name: Authenticator Management
+    evidence:
+      - type: policy
+        description: Credential management procedures
+        filename: policies/credential-management.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: IA-6
+    control_name: Account Recovery
+    evidence:
+      - type: config
+        description: Account recovery flow documentation
+        filename: evidence/ia-6/recovery-flow.md
+        frequency: quarterly
+        owner: Engineering
+
+  - control_id: IA-7
+    control_name: Service Authentication
+    evidence:
+      - type: config
+        description: API authentication configuration
+        filename: evidence/ia-7/api-auth-config.md
+        frequency: quarterly
+        owner: Engineering
+
+---
+# Incident Response Evidence
+
+incident_response:
+
+  - control_id: IR-1
+    control_name: IR Policy
+    evidence:
+      - type: policy
+        description: Incident response plan
+        filename: policies/incident-response-plan.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: IR-2
+    control_name: Incident Detection
+    evidence:
+      - type: config
+        description: Monitoring and alerting configuration
+        filename: evidence/ir-2/alerting-config-{date}.json
+        frequency: quarterly
+        owner: Operations
+
+  - control_id: IR-3
+    control_name: Incident Classification
+    evidence:
+      - type: policy
+        description: Incident classification matrix
+        filename: policies/incident-classification.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: IR-4
+    control_name: Incident Containment
+    evidence:
+      - type: policy
+        description: Containment procedures
+        filename: runbooks/incident-containment.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: IR-5
+    control_name: Incident Communication
+    evidence:
+      - type: policy
+        description: Communication plan and templates
+        filename: policies/incident-communication.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: IR-6
+    control_name: Post-Incident Review
+    evidence:
+      - type: report
+        description: Post-incident review reports
+        filename: evidence/ir-6/pir-{incident_id}.pdf
+        frequency: per_incident
+        owner: Security Team
+
+---
+# System Protection Evidence
+
+system_protection:
+
+  - control_id: SC-1
+    control_name: SC Policy
+    evidence:
+      - type: policy
+        description: System protection policy
+        filename: policies/system-protection-policy.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: SC-2
+    control_name: TLS Configuration
+    evidence:
+      - type: test
+        description: TLS scan results (SSL Labs or similar)
+        filename: evidence/sc-2/tls-scan-{date}.pdf
+        frequency: quarterly
+        owner: Security Team
+
+  - control_id: SC-3
+    control_name: Security Headers
+    evidence:
+      - type: test
+        description: Security headers scan results
+        filename: evidence/sc-3/headers-scan-{date}.json
+        frequency: quarterly
+        owner: Security Team
+
+      - type: config
+        description: Security headers middleware configuration
+        filename: evidence/sc-3/headers-config.ts
+        frequency: per_change
+        owner: Engineering
+
+  - control_id: SC-4
+    control_name: Input Validation
+    evidence:
+      - type: config
+        description: Effect Schema validation schemas
+        filename: evidence/sc-4/validation-schemas.ts
+        frequency: per_change
+        owner: Engineering
+
+      - type: test
+        description: Input validation test results
+        filename: evidence/sc-4/validation-tests-{date}.json
+        frequency: quarterly
+        owner: QA
+
+  - control_id: SC-5
+    control_name: SQL Injection Prevention
+    evidence:
+      - type: config
+        description: Drizzle ORM parameterized query examples
+        filename: evidence/sc-5/orm-examples.md
+        frequency: quarterly
+        owner: Engineering
+
+      - type: test
+        description: SQL injection scan results
+        filename: evidence/sc-5/sqli-scan-{date}.pdf
+        frequency: quarterly
+        owner: Security Team
+
+  - control_id: SC-6
+    control_name: XSS Prevention
+    evidence:
+      - type: test
+        description: XSS vulnerability scan results
+        filename: evidence/sc-6/xss-scan-{date}.pdf
+        frequency: quarterly
+        owner: Security Team
+
+  - control_id: SC-7
+    control_name: CORS Configuration
+    evidence:
+      - type: config
+        description: CORS middleware configuration
+        filename: evidence/sc-7/cors-config-{date}.json
+        frequency: quarterly
+        owner: Engineering
+
+  - control_id: SC-8
+    control_name: Data at Rest Encryption
+    evidence:
+      - type: config
+        description: Database encryption configuration
+        filename: evidence/sc-8/encryption-config-{date}.md
+        frequency: quarterly
+        owner: Database Admin
+
+---
+# System Integrity Evidence
+
+system_integrity:
+
+  - control_id: SI-1
+    control_name: SI Policy
+    evidence:
+      - type: policy
+        description: System integrity policy
+        filename: policies/system-integrity-policy.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: SI-2
+    control_name: Vulnerability Management
+    evidence:
+      - type: test
+        description: Vulnerability scan results
+        filename: evidence/si-2/vuln-scan-{date}.pdf
+        frequency: monthly
+        owner: Security Team
+
+      - type: report
+        description: Vulnerability remediation tracking
+        filename: evidence/si-2/remediation-{date}.xlsx
+        frequency: monthly
+        owner: Security Team
+
+  - control_id: SI-3
+    control_name: Malware Protection
+    evidence:
+      - type: config
+        description: Endpoint protection configuration
+        filename: evidence/si-3/endpoint-config-{date}.json
+        frequency: quarterly
+        owner: IT Admin
+
+  - control_id: SI-4
+    control_name: Dependency Scanning
+    evidence:
+      - type: test
+        description: npm audit / bun audit results
+        filename: evidence/si-4/dependency-audit-{date}.json
+        frequency: weekly
+        owner: Engineering
+        collection_method: bun pm audit --json
+
+  - control_id: SI-5
+    control_name: Error Handling
+    evidence:
+      - type: config
+        description: Error handling middleware configuration
+        filename: evidence/si-5/error-handling.ts
+        frequency: per_change
+        owner: Engineering
+
+  - control_id: SI-6
+    control_name: Data Validation
+    evidence:
+      - type: test
+        description: Unit test results for validation
+        filename: evidence/si-6/validation-tests-{date}.json
+        frequency: per_release
+        owner: QA
+        collection_method: bun test --reporter=json
+
+---
+# Data Management Evidence
+
+data_management:
+
+  - control_id: DM-1
+    control_name: Data Classification
+    evidence:
+      - type: policy
+        description: Data classification policy and matrix
+        filename: policies/data-classification.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: DM-2
+    control_name: PII Protection
+    evidence:
+      - type: config
+        description: PII field inventory and protection measures
+        filename: evidence/dm-2/pii-inventory-{date}.yml
+        frequency: quarterly
+        owner: Security Team
+
+  - control_id: DM-3
+    control_name: Data Retention
+    evidence:
+      - type: policy
+        description: Data retention schedule
+        filename: policies/data-retention.md
+        frequency: annual
+        owner: Compliance
+
+      - type: log
+        description: Data purge execution logs
+        filename: evidence/dm-3/purge-logs-{date}.json
+        frequency: quarterly
+        owner: Database Admin
+
+  - control_id: DM-4
+    control_name: Data Disposal
+    evidence:
+      - type: policy
+        description: Data disposal procedures
+        filename: policies/data-disposal.md
+        frequency: annual
+        owner: Security Team
+
+  - control_id: DM-5
+    control_name: Backup & Recovery
+    evidence:
+      - type: log
+        description: Backup completion logs
+        filename: evidence/dm-5/backup-logs-{date}.json
+        frequency: daily
+        owner: Operations
+
+      - type: test
+        description: Backup restoration test results
+        filename: evidence/dm-5/restore-test-{date}.pdf
+        frequency: quarterly
+        owner: Operations
+
+  - control_id: DM-6
+    control_name: Document Handling
+    evidence:
+      - type: config
+        description: File upload configuration and restrictions
+        filename: evidence/dm-6/upload-config.json
+        frequency: quarterly
+        owner: Engineering
+
+---
+# Evidence Collection Schedule
+
+collection_schedule:
+
+  daily:
+    - DM-5: Backup completion logs
+
+  weekly:
+    - SI-4: Dependency audit
+
+  monthly:
+    - AC-2: Account audit logs
+    - AC-5: Session audit logs
+    - AC-7: Failed login logs
+    - AC-8: Rate limit violations
+    - AU-2: Request audit sample
+    - AU-3: User action logs
+    - AU-4: Log storage report
+    - AU-6: Security alerts
+    - IA-4: MFA adoption metrics
+    - SI-2: Vulnerability scans
+
+  quarterly:
+    - AC-2: User accounts export
+    - AC-3: Role permissions matrix
+    - AC-4: Role distribution report
+    - AC-5: JWT configuration
+    - AC-6: JWT security config
+    - AC-7: Rate limit configuration
+    - AC-8: Rate limit settings
+    - AC-9: Request access rules
+    - AU-4: Retention configuration
+    - AU-5: Audit permissions
+    - CM-2: Baseline configuration
+    - CM-3: Change log, branch protection
+    - CM-4: Security reviews
+    - CM-5: Repository access
+    - CM-6: Environment comparison
+    - IA-3: Password policy tests
+    - IA-4: MFA configuration
+    - IA-6: Recovery flow documentation
+    - IA-7: API auth configuration
+    - IR-2: Alerting configuration
+    - SC-2: TLS scan
+    - SC-3: Security headers scan
+    - SC-4: Validation tests
+    - SC-5: SQL injection scan
+    - SC-6: XSS scan
+    - SC-7: CORS configuration
+    - SC-8: Encryption configuration
+    - SI-3: Endpoint protection config
+    - DM-2: PII inventory
+    - DM-3: Purge logs
+    - DM-5: Restore test
+    - DM-6: Upload configuration
+
+  annual:
+    - AC-1: Access control policy
+    - AU-1: Audit policy
+    - CM-1: Configuration policy
+    - IA-1: Authentication policy
+    - IA-5: Credential management
+    - IR-1: Incident response plan
+    - IR-3: Incident classification
+    - IR-4: Containment procedures
+    - IR-5: Communication plan
+    - SC-1: System protection policy
+    - SI-1: System integrity policy
+    - DM-1: Data classification
+    - DM-3: Data retention schedule
+    - DM-4: Data disposal procedures
+
+  per_change:
+    - AC-3: Schema roles
+    - AU-2: Audit schema
+    - CM-3: Git commits
+    - IA-2: User schema
+    - SC-3: Headers config
+    - SC-4: Validation schemas
+    - SI-5: Error handling
+
+  per_release:
+    - SI-6: Validation test results
+
+  per_incident:
+    - IR-6: Post-incident review
+
+---
+# Automation Opportunities
+
+automation:
+
+  - name: User Account Export
+    controls: [AC-2, AC-4]
+    method: scheduled_sql_query
+    frequency: quarterly
+    script: scripts/evidence/export-users.ts
+
+  - name: Audit Log Sampling
+    controls: [AU-2, AU-3]
+    method: scheduled_sql_query
+    frequency: monthly
+    script: scripts/evidence/sample-audit-logs.ts
+
+  - name: MFA Metrics
+    controls: [IA-4]
+    method: scheduled_sql_query
+    frequency: monthly
+    script: scripts/evidence/mfa-metrics.ts
+
+  - name: Dependency Audit
+    controls: [SI-4]
+    method: ci_pipeline
+    frequency: weekly
+    command: bun pm audit --json > evidence/si-4/dependency-audit-$(date +%Y%m%d).json
+
+  - name: Test Results
+    controls: [SC-4, SI-6]
+    method: ci_pipeline
+    frequency: per_release
+    command: bun test --reporter=json > evidence/test-results-$(date +%Y%m%d).json
+
+  - name: Git Change Log
+    controls: [CM-3]
+    method: scheduled_script
+    frequency: quarterly
+    command: git log --since="3 months ago" --pretty=format:"%h %ad %s" --date=short

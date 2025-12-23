@@ -32,3 +32,18 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Database
+data/*.db
+data/*.db-*
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Drizzle meta
+drizzle/meta/
+.vscode/mcp.json
+
+.turbo/
+.next/

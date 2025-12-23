@@ -1,0 +1,234 @@
+# FOIA Stream - Vendor Inventory
+# Last Updated: 2025-12-21
+# Status: Draft
+
+# ============================================
+# Vendor Classification Tiers
+# ============================================
+# Tier 1 (Critical): Full system access, processes PII/sensitive data
+# Tier 2 (Important): Limited system access, may process some data
+# Tier 3 (Standard): No direct system/data access, supporting services
+
+---
+
+# ============================================
+# Runtime Dependencies (from package.json)
+# ============================================
+
+dependencies:
+  # Core Framework
+  - vendor: "Hono"
+    package: "hono"
+    version: "^4.11.1"
+    purpose: "Web framework for HTTP routing and middleware"
+    tier: 1
+    data_access: "All HTTP request/response data"
+    license: "MIT"
+    security_review_status: "{{<hono_review_status>}}"
+    last_reviewed: "{{<hono_review_date>}}"
+    notes: "Open source, actively maintained"
+
+  # Database
+  - vendor: "Drizzle Team"
+    package: "drizzle-orm"
+    version: "^0.45.1"
+    purpose: "Type-safe ORM for database operations"
+    tier: 1
+    data_access: "All database operations"
+    license: "Apache-2.0"
+    security_review_status: "{{<drizzle_review_status>}}"
+    last_reviewed: "{{<drizzle_review_date>}}"
+
+  - vendor: "better-sqlite3 Contributors"
+    package: "better-sqlite3"
+    version: "^12.5.0"
+    purpose: "SQLite database driver (test environment)"
+    tier: 1
+    data_access: "Full database access"
+    license: "MIT"
+    security_review_status: "{{<sqlite_review_status>}}"
+
+  # Authentication & Security
+  - vendor: "Ranisalt"
+    package: "argon2"
+    version: "^0.44.0"
+    purpose: "Password hashing using Argon2"
+    tier: 1
+    data_access: "Password data (hashes only)"
+    license: "MIT"
+    security_review_status: "{{<argon2_review_status>}}"
+    notes: "Argon2id algorithm, winner of PHC"
+
+  - vendor: "Filip Skokan"
+    package: "jose"
+    version: "^6.1.3"
+    purpose: "JWT token signing and verification"
+    tier: 1
+    data_access: "Authentication tokens"
+    license: "MIT"
+    security_review_status: "{{<jose_review_status>}}"
+    notes: "Widely adopted, security-focused"
+
+  # Validation
+  - vendor: "Effect-TS Team"
+    package: "effect"
+    version: "^3.19.13"
+    purpose: "Schema validation and type-safe error handling"
+    tier: 2
+    data_access: "All input validation"
+    license: "MIT"
+    security_review_status: "{{<effect_review_status>}}"
+
+  # Utilities
+  - vendor: "Day.js Contributors"
+    package: "dayjs"
+    version: "^1.11.19"
+    purpose: "Date/time manipulation"
+    tier: 3
+    data_access: "Date formatting only"
+    license: "MIT"
+
+  - vendor: "Andrey Sitnik"
+    package: "nanoid"
+    version: "^5.1.6"
+    purpose: "Unique ID generation"
+    tier: 2
+    data_access: "ID generation for entities"
+    license: "MIT"
+    notes: "Cryptographically secure"
+
+# ============================================
+# Development Dependencies
+# ============================================
+
+dev_dependencies:
+  - vendor: "Bun"
+    package: "@types/bun"
+    version: "latest"
+    purpose: "TypeScript types for Bun runtime"
+    tier: 3
+    data_access: "None (dev only)"
+    license: "MIT"
+
+  - vendor: "Vitest"
+    package: "vitest"
+    version: "^4.0.16"
+    purpose: "Testing framework"
+    tier: 3
+    data_access: "Test data only"
+    license: "MIT"
+
+  - vendor: "Drizzle Team"
+    package: "drizzle-kit"
+    version: "^0.31.8"
+    purpose: "Database migrations and tooling"
+    tier: 3
+    data_access: "Schema definitions only"
+    license: "Apache-2.0"
+
+# ============================================
+# Infrastructure Vendors
+# ============================================
+
+infrastructure:
+  compute:
+    - vendor: "{{<hosting_vendor_name>}}"
+      service: "{{<hosting_service>}}"
+      tier: 1
+      data_access: "Full system access"
+      agreement_type: "DPA"
+      agreement_status: "{{<hosting_dpa_status>}}"
+      contract_expiry: "{{<hosting_contract_date>}}"
+      security_certifications:
+        - "{{<hosting_cert_1>}}"
+      last_reviewed: "{{<hosting_review_date>}}"
+
+  # NOTE: Currently using local SQLite - no external database vendor
+  database:
+    - vendor: "Local SQLite"
+      service: "Embedded database"
+      tier: 1
+      data_access: "All application data"
+      notes: "No external vendor - database runs locally"
+
+  # NOTE: Currently using local filesystem - no external storage vendor
+  storage:
+    - vendor: "Local Filesystem"
+      service: "File storage (./uploads/)"
+      tier: 1
+      data_access: "All uploaded documents"
+      notes: "No external vendor - files stored locally"
+
+# ============================================
+# Optional/Future Vendors
+# ============================================
+
+pending_evaluation:
+  email:
+    - vendor: "{{<email_vendor>}}"
+      service: "Transactional email"
+      purpose: "Account notifications, request updates"
+      data_shared: "Email addresses, notification content"
+      required_agreements:
+        - "DPA (GDPR)"
+        - "Standard Contractual Clauses (if EU)"
+      status: "Not yet implemented"
+
+  monitoring:
+    - vendor: "{{<apm_vendor>}}"
+      service: "Application Performance Monitoring"
+      purpose: "Error tracking, performance metrics"
+      data_shared: "Logs, errors, performance data"
+      required_agreements:
+        - "DPA"
+      status: "Not yet implemented"
+
+  cdn:
+    - vendor: "{{<cdn_vendor>}}"
+      service: "Content Delivery Network"
+      purpose: "Static asset delivery, DDoS protection"
+      data_shared: "IP addresses, request metadata"
+      required_agreements:
+        - "DPA"
+      status: "Not yet implemented"
+
+# ============================================
+# Vendor Risk Summary
+# ============================================
+
+risk_summary:
+  total_vendors: 10
+  tier_1_critical: 5
+  tier_2_important: 2
+  tier_3_standard: 3
+
+  requiring_dpa:
+    - "{{<hosting_vendor_name>}}"
+    # Add email, monitoring vendors when implemented
+
+  requiring_baa: []  # No HIPAA scope
+
+  open_source_dependencies: 9
+  commercial_services: 1  # Hosting only
+
+# ============================================
+# Review Schedule
+# ============================================
+
+review_schedule:
+  tier_1_critical:
+    frequency: "Annually"
+    next_review: "{{<next_tier1_review>}}"
+
+  tier_2_important:
+    frequency: "Annually"
+    next_review: "{{<next_tier2_review>}}"
+
+  tier_3_standard:
+    frequency: "Every 2 years"
+    next_review: "{{<next_tier3_review>}}"
+
+  dependency_scanning:
+    tool: "{{<dependency_scanner>}}"
+    frequency: "On every PR / Weekly"
+    last_scan: "{{<last_dep_scan>}}"

@@ -1,0 +1,145 @@
+{
+  // General editor settings
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.biome": "explicit"
+  },
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+
+  // TypeScript/JavaScript - Use Biome
+  "editor.defaultFormatter": "biomejs.biome",
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+
+  // Python - Use Ruff
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
+    }
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+
+  // Rust - Use rust-analyzer
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.checkOnSave": true,
+
+  // TypeScript settings
+  "typescript.preferences.importModuleSpecifierEnding": "js",
+  "typescript.reportStyleChecksAsWarnings": false,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  // Disable conflicting extensions
+  "eslint.enable": false,
+  "prettier.enable": false,
+
+  // Search exclusions
+  "search.exclude": {
+    "./apps/mobile/android/app/build/**": true,
+    "./apps/mobile/ios/DerivedData/**": true,
+    "**/node_modules": true,
+    "**/.turbo": true,
+    "**/.next": true,
+    "**/.expo": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.ruff_cache": true,
+    "**/.mypy_cache": true,
+    "**/.pytest_cache": true,
+    "**/target": true,
+    "**/__pycache__": true,
+    "**/.venv": true,
+    "**/.uv-cache": true
+  },
+
+  // File associations
+  "files.associations": {
+    "*.css": "tailwindcss",
+    "*.toml": "toml",
+    "Cargo.lock": "toml"
+  },
+
+  // File nesting patterns for cleaner explorer
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    // TypeScript/JavaScript configs
+    "tsconfig.json": "tsconfig.*.json, *.d.ts",
+    "app.config.*": "jsconfig*, vitest.config.*, cypress.config.*, playwright.config.*, jest.config.*",
+    "package.json": "package-lock.json, pnpm*, .yarnrc*, yarn*, .eslint*, eslint*, .prettier*, prettier*, .editorconfig, .gitattributes, bun.lock, bun.lockb, .npmrc, .nvmrc, bunfig.toml, turbo.json, biome.json",
+    "vite.config.ts": "vite.*.config.ts, vitest*.config.ts",
+    "vitest.workspace.ts": "vitest.config.ts, vitest.*.config.ts",
+
+    // TypeScript files
+    "*.ts": "$(capture).test.ts, $(capture).spec.ts, $(capture).d.ts, $(capture).types.ts, $(capture).stories.ts, $(capture).stories.tsx, $(capture).mock.ts, $(capture).fn.ts, $(capture).model.ts, $(capture).schema.ts, $(capture).dto.ts, $(capture).interface.ts",
+    "*.tsx": "$(capture).test.tsx, $(capture).spec.tsx, $(capture).stories.tsx, $(capture).stories.ts, $(capture).mock.tsx, $(capture).module.css, $(capture).styles.ts",
+    "*.js": "$(capture).test.js, $(capture).spec.js, $(capture).stories.js, $(capture).mock.js, $(capture).config.js",
+    "*.jsx": "$(capture).test.jsx, $(capture).spec.jsx, $(capture).stories.jsx, $(capture).mock.jsx",
+    "*.component.ts": "$(capture).module.ts, $(capture).style.ts",
+    "*.component.tsx": "$(capture).module.tsx, $(capture).style.tsx",
+
+    // Python files
+    "*.py": "$(capture)_test.py, $(capture).test.py, $(capture)_spec.py, test_$(capture).py",
+    "pyproject.toml": "poetry.lock, Pipfile, Pipfile.lock, requirements*.txt, setup.py, setup.cfg, MANIFEST.in, uv.lock, .python-version",
+    "setup.py": "setup.cfg, MANIFEST.in, pyproject.toml",
+
+    // Rust files
+    "Cargo.toml": "Cargo.lock, rust-toolchain.toml, rustfmt.toml, .rustfmt.toml, clippy.toml, .clippy.toml, deny.toml",
+    "lib.rs": "mod.rs, main.rs",
+    "*.rs": "$(capture).test.rs, $(capture)_test.rs",
+
+    // Documentation
+    "README.md": "LICENSE*, CHANGELOG.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, AUTHORS.md, TESTING.md, LINTING.md, SETUP_SUMMARY.md, ARCHITECTURE.md, COMPLIANCE*.md, DATA-SOURCES.md, NEXT_STEPS.md, REFACTORING_SUMMARY.md, WORKSPACE.md, CLAUDE.md, GEMINI.md, WARP.md",
+
+    // Environment files
+    ".env": ".env.*, .envrc, .env.local, .env.development, .env.test, .env.production, .env.staging",
+
+    // Docker
+    "docker-compose.yml": "docker-compose.*.yml, Dockerfile, Dockerfile.*, .dockerignore",
+    "Dockerfile": "docker-compose.yml, docker-compose.*.yml, .dockerignore",
+
+    // Git
+    ".gitignore": ".gitkeep, .gitattributes, .dockerignore",
+
+    // Prisma
+    "schema.prisma": "*.gen.ts, prisma.config.ts, seed.ts, migrations/",
+
+    // Next.js
+    "next.config.*": "next-env.d.ts, .next/",
+
+    // Expo/React Native
+    "app.json": "eas.json, app.config.*, metro.config.*, babel.config.*, .expo/",
+
+    // Monorepo
+    "pnpm-workspace.yaml": "pnpm-lock.yaml, .npmrc, .nvmrc, turbo.json, package.json",
+    "turbo.json": "pnpm-workspace.yaml, .turbo/",
+
+    // Configs at root
+    ".editorconfig": ".prettierrc*, .eslintrc*, .eslintignore, .gitattributes, biome.json, .rustfmt.toml, .clippy.toml"
+  }
+}

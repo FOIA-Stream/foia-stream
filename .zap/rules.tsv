@@ -1,0 +1,137 @@
+# ZAP Scanning Rules Configuration
+# Format: rule_id	action	parameter_name
+# Actions: IGNORE, WARN, FAIL
+#
+# Used by OWASP ZAP baseline scan in CI/CD pipeline
+
+# Information Disclosure - Debug Error Messages
+10023	WARN
+
+# X-Content-Type-Options Header Missing (handled by Hono secure headers)
+10021	IGNORE
+
+# X-Frame-Options Header Not Set (handled by Hono secure headers)
+10020	IGNORE
+
+# Cookie Without SameSite Attribute
+10054	WARN
+
+# Strict-Transport-Security Header Not Set
+10035	IGNORE
+
+# Content Security Policy (CSP) Header Not Set
+10038	WARN
+
+# Missing Anti-clickjacking Header
+10027	IGNORE
+
+# Server Leaks Version Information via Server HTTP Response Header
+10036	WARN
+
+# Timestamp Disclosure
+10096	IGNORE
+
+# Information Disclosure - Suspicious Comments
+10027	IGNORE
+
+# User Controllable HTML Element Attribute (Potential XSS)
+10031	FAIL
+
+# SQL Injection
+40018	FAIL
+
+# Cross Site Scripting (Reflected)
+40012	FAIL
+
+# Cross Site Scripting (Persistent)
+40014	FAIL
+
+# Remote File Inclusion
+7	FAIL
+
+# Server Side Include
+40009	FAIL
+
+# Path Traversal
+6	FAIL
+
+# Remote OS Command Injection
+90020	FAIL
+
+# External Redirect
+20019	WARN
+
+# LDAP Injection
+40015	FAIL
+
+# XML Injection
+90017	FAIL
+
+# CRLF Injection
+40003	FAIL
+
+# Parameter Tampering
+40008	WARN
+
+# Integer Overflow Error
+30003	WARN
+
+# Format String Error
+30002	WARN
+
+# Buffer Overflow
+30001	FAIL
+
+# Heartbleed OpenSSL Vulnerability
+20015	FAIL
+
+# Cross-Domain Misconfiguration
+10098	WARN
+
+# Source Code Disclosure
+10099	FAIL
+
+# Weak Authentication Method
+10105	FAIL
+
+# Absence of Anti-CSRF Tokens
+10202	WARN
+
+# Private IP Disclosure
+2	IGNORE
+
+# Session ID in URL Rewrite
+3	FAIL
+
+# Secure Pages Include Mixed Content
+10040	FAIL
+
+# Insecure HTTP Methods
+90028	WARN
+
+# Application Error Disclosure
+90022	FAIL
+
+# Directory Browsing
+0	WARN
+
+# Retrieved from Cache
+10050	IGNORE
+
+# Cookie Slack Detector
+90027	IGNORE
+
+# CSP Scanner
+10055	WARN
+
+# Hash Disclosure
+10097	WARN
+
+# Modern Web Application
+10109	IGNORE
+
+# Content-Type Header Missing
+10019	WARN
+
+# Charset Mismatch
+90011	WARN
