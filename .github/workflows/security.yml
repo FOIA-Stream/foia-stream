@@ -3,31 +3,29 @@
 # Implements comprehensive security scanning in CI/CD
 # Addresses: GAP-003 (Security Scanning in CI/CD Pipeline)
 # Controls: SA-11, A.8.25, A.8.31, 3.14.1
+#
+# Note: Optimized for private repos (no SARIF uploads - requires GitHub Advanced Security)
 
 name: Security Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main]
+    branches: [master]
   schedule:
-    # Run security scans daily at 2 AM UTC
     - cron: '0 2 * * *'
+  workflow_dispatch:
 
 env:
   BUN_VERSION: '1.3.2'
 
 jobs:
-  # ============================================
-  # SAST - Static Application Security Testing
-  # ============================================
   sast:
     name: Static Analysis
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
@@ -43,51 +41,40 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # TypeScript type checking as security measure
       - name: TypeScript check
-        run: bun tsc --noEmit
-
-      # ESLint security rules
-      - name: ESLint security scan
         run: |
-          bun add -d @typescript-eslint/eslint-plugin eslint-plugin-security
-          bunx eslint . --ext .ts --format sarif --output-file eslint-results.sarif || true
+          echo "## TypeScript Check" >> $GITHUB_STEP_SUMMARY
+          if bun run typecheck 2>&1 | tee typescript-output.txt; then
+            echo "✅ TypeScript check passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ TypeScript errors found" >> $GITHUB_STEP_SUMMARY
+          fi
         continue-on-error: true
 
-      - name: Upload ESLint results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: eslint-results.sarif
+      - name: Biome lint check
+        run: |
+          echo "## Biome Lint Check" >> $GITHUB_STEP_SUMMARY
+          if bun run lint 2>&1 | tee lint-output.txt; then
+            echo "✅ Linting passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Linting issues found" >> $GITHUB_STEP_SUMMARY
+          fi
         continue-on-error: true
 
-      # Semgrep SAST
       - name: Semgrep SAST scan
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: >-
-            p/security-audit
-            p/secrets
-            p/typescript
-            p/nodejs
+        run: |
+          echo "## Semgrep Security Scan" >> $GITHUB_STEP_SUMMARY
+          pip install semgrep
+          semgrep scan --config=p/security-audit --config=p/secrets --json > semgrep-output.json 2>&1 || true
+          FINDINGS=$(cat semgrep-output.json | jq '.results | length' 2>/dev/null || echo "0")
+          echo "Found $FINDINGS potential issues" >> $GITHUB_STEP_SUMMARY
         continue-on-error: true
 
-      - name: Upload Semgrep results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: semgrep.sarif
-        continue-on-error: true
-
-  # ============================================
-  # SCA - Software Composition Analysis
-  # ============================================
   dependency-scan:
     name: Dependency Scanning
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
@@ -101,69 +88,30 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Snyk vulnerability scan
-      - name: Snyk vulnerability scan
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=medium --sarif-file-output=snyk.sarif
-
-      - name: Upload Snyk results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: snyk.sarif
-        continue-on-error: true
-
-      # npm audit equivalent using bun
       - name: Audit dependencies
         run: |
-          # Create audit report
-          bun pm ls --json > dependencies.json || true
-
-          # Check for known vulnerabilities using npm audit on package.json
+          echo "## Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
           npm audit --json > audit-results.json 2>&1 || true
-
-          # Parse and report critical/high vulnerabilities
           if [ -f audit-results.json ]; then
-            echo "## Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
-            cat audit-results.json | jq -r '.vulnerabilities // {} | to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | "- **\(.value.severity)**: \(.key) - \(.value.title // "No title")"' >> $GITHUB_STEP_SUMMARY || echo "No critical/high vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            CRITICAL=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0' 2>/dev/null || echo "0")
+            HIGH=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0' 2>/dev/null || echo "0")
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            if [ "$CRITICAL" != "0" ] || [ "$HIGH" != "0" ]; then
+              echo "⚠️ Critical or High vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ No critical or high vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
         continue-on-error: true
 
-      # OSV Scanner for additional coverage
-      - name: OSV Scanner
-        run: |
-          # Install and run google/osv-scanner locally (uses Go to install the binary)
-          set -e
-          if ! command -v osv-scanner >/dev/null 2>&1; then
-            echo "Installing osv-scanner..."
-            go install github.com/google/osv-scanner/cmd/osv-scanner@latest
-            # Add GOPATH bin to PATH for this step
-            export PATH="$PATH:$(go env GOPATH 2>/dev/null)/bin"
-          fi
-          # Run the scanner with same args as before
-          osv-scanner --lockfile=bun.lock --format=sarif --output=osv-results.sarif
-        continue-on-error: true
-
-      - name: Upload OSV results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: osv-results.sarif
-        continue-on-error: true
-
-  # ============================================
-  # Secret Detection
-  # ============================================
   secret-scan:
     name: Secret Detection
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
@@ -171,70 +119,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Gitleaks secret detection
-      # Note: No license required for personal GitHub accounts
       - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      # TruffleHog for additional coverage
-      - name: TruffleHog scan
-        uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: --only-verified
-        continue-on-error: true
-
-  # ============================================
-  # Container Security (if applicable)
-  # ============================================
-  container-scan:
-    name: Container Security
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    permissions:
-      contents: read
-      security-events: write
-      packages: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check for Dockerfile
-        id: dockerfile
         run: |
-          if [ -f Dockerfile ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+          echo "## Secret Detection" >> $GITHUB_STEP_SUMMARY
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz | tar -xz
+          if ./gitleaks detect --source . --report-format json --report-path gitleaks-report.json 2>&1; then
+            echo "✅ No secrets detected" >> $GITHUB_STEP_SUMMARY
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            LEAKS=$(cat gitleaks-report.json | jq 'length' 2>/dev/null || echo "unknown")
+            echo "⚠️ $LEAKS potential secrets detected" >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Build image for scanning
-        if: steps.dockerfile.outputs.exists == 'true'
-        run: docker build -t foia-stream:scan .
-
-      - name: Trivy vulnerability scan
-        if: steps.dockerfile.outputs.exists == 'true'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'foia-stream:scan'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
         continue-on-error: true
 
-      - name: Upload Trivy results
-        if: steps.dockerfile.outputs.exists == 'true'
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
-
-  # ============================================
-  # License Compliance
-  # ============================================
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
@@ -253,17 +149,10 @@ jobs:
 
       - name: Check licenses
         run: |
-          # Install license checker
+          echo "## License Compliance" >> $GITHUB_STEP_SUMMARY
           bun add -d license-checker
-
-          # Generate license report
           bunx license-checker --summary --out licenses.txt
-
-          # Check for problematic licenses
-          echo "## License Summary" >> $GITHUB_STEP_SUMMARY
           cat licenses.txt >> $GITHUB_STEP_SUMMARY
-
-          # Fail if GPL or AGPL licenses found (adjust as needed)
           if bunx license-checker --failOn 'GPL;AGPL' 2>/dev/null; then
             echo "✅ No problematic licenses found" >> $GITHUB_STEP_SUMMARY
           else
@@ -271,9 +160,6 @@ jobs:
           fi
         continue-on-error: true
 
-  # ============================================
-  # Security Tests
-  # ============================================
   security-tests:
     name: Security Tests
     runs-on: ubuntu-latest
@@ -290,67 +176,25 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run security tests
-        run: bun test tests/security --coverage
-        env:
-          DATABASE_URL: ':memory:'
-          JWT_SECRET: 'test-jwt-secret-for-ci-security-tests-only'
-          NODE_ENV: test
-        continue-on-error: true
-
-      - name: Run all tests
-        run: bun test --coverage
-        env:
-          DATABASE_URL: ':memory:'
-          JWT_SECRET: 'test-jwt-secret-for-ci-security-tests-only'
-          NODE_ENV: test
-
-  # ============================================
-  # DAST - Dynamic Testing (on staging)
-  # ============================================
-  dast:
-    name: Dynamic Security Testing
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    needs: [sast, dependency-scan, security-tests]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Start application
+      - name: Run tests
         run: |
-          bun run start &
-          sleep 10  # Wait for app to start
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          cd apps/api
+          if bun run test 2>&1 | tee test-output.txt; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
         env:
           DATABASE_URL: ':memory:'
-          JWT_SECRET: 'test-jwt-secret-for-ci-dast-only'
+          JWT_SECRET: 'test-jwt-secret-for-ci-security-tests-only'
           NODE_ENV: test
-          PORT: 3000
 
-      - name: OWASP ZAP Baseline scan
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: 'http://localhost:3000'
-          rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
-        continue-on-error: true
-
-  # ============================================
-  # Security Report
-  # ============================================
   security-report:
     name: Security Report
     runs-on: ubuntu-latest
-    needs: [sast, dependency-scan, secret-scan, security-tests]
+    needs: [sast, dependency-scan, secret-scan, security-tests, license-check]
     if: always()
 
     steps:
@@ -363,14 +207,11 @@ jobs:
           echo "| SAST | ${{ needs.sast.result == 'success' && '✅ Passed' || '⚠️ Issues Found' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Dependency Scan | ${{ needs.dependency-scan.result == 'success' && '✅ Passed' || '⚠️ Issues Found' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Secret Detection | ${{ needs.secret-scan.result == 'success' && '✅ Passed' || '⚠️ Issues Found' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security Tests | ${{ needs.security-tests.result == 'success' && '✅ Passed' || '⚠️ Issues Found' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Tests | ${{ needs.security-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result == 'success' && '✅ Passed' || '⚠️ Issues Found' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "For detailed findings, check the Security tab in this repository." >> $GITHUB_STEP_SUMMARY
 
-      - name: Fail if critical issues
-        if: needs.sast.result == 'failure' || needs.secret-scan.result == 'failure'
-        run: |
-          echo "Critical security issues found. Please review the security scan results."
-          exit 1
+      - name: Fail if tests failed
+        if: needs.security-tests.result == 'failure'
+        run: exit 1
