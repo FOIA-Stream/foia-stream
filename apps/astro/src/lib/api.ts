@@ -389,6 +389,195 @@ class ApiClient {
   async getTemplate(id: string): Promise<ApiResponse<Template>> {
     return this.request<Template>(`/templates/${id}`);
   }
+
+  /**
+   * Updates the current user's profile
+   * @param {Object} data - Profile fields to update
+   * @param {string} [data.firstName] - Updated first name
+   * @param {string} [data.lastName] - Updated last name
+   * @param {string} [data.organization] - Updated organization
+   * @param {boolean} [data.isAnonymous] - Whether to hide identity
+   * @returns {Promise<ApiResponse<User>>} Updated user data
+   */
+  async updateProfile(data: {
+    firstName?: string;
+    lastName?: string;
+    organization?: string;
+    isAnonymous?: boolean;
+  }): Promise<ApiResponse<User>> {
+    return this.request<User>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Changes the current user's password
+   * @param {string} currentPassword - Current account password
+   * @param {string} newPassword - New password to set
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+  // ============================================
+  // MFA Methods
+  // ============================================
+
+  /**
+   * Gets the current MFA status
+   * @returns {Promise<ApiResponse<{enabled: boolean, backupCodesRemaining?: number}>>} MFA status
+   */
+  async getMFAStatus(): Promise<ApiResponse<{ enabled: boolean; backupCodesRemaining?: number }>> {
+    return this.request<{ enabled: boolean; backupCodesRemaining?: number }>('/auth/mfa/status');
+  }
+
+  /**
+   * Initiates MFA setup
+   * @param {string} password - Account password for verification
+   * @returns {Promise<ApiResponse<{qrCodeUrl: string, secret: string, backupCodes: string[]}>>} Setup data
+   */
+  async setupMFA(password: string): Promise<ApiResponse<{ qrCodeUrl: string; secret: string; backupCodes: string[] }>> {
+    return this.request<{ qrCodeUrl: string; secret: string; backupCodes: string[] }>('/auth/mfa/setup', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  /**
+   * Verifies and enables MFA
+   * @param {string} code - 6-digit TOTP code
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async verifyMFA(code: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/auth/mfa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  /**
+   * Disables MFA
+   * @param {string} password - Account password
+   * @param {string} code - Current TOTP code
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async disableMFA(password: string, code: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/auth/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password, code }),
+    });
+  }
+
+  // ============================================
+  // Session Methods
+  // ============================================
+
+  /**
+   * Gets all active sessions
+   * @returns {Promise<ApiResponse<Session[]>>} List of sessions
+   */
+  async getSessions(): Promise<ApiResponse<Array<{
+    id: string;
+    deviceName: string | null;
+    ipAddress: string | null;
+    lastActiveAt: string | null;
+    createdAt: string;
+    isCurrent: boolean;
+  }>>> {
+    return this.request('/auth/sessions');
+  }
+
+  /**
+   * Revokes a specific session
+   * @param {string} sessionId - Session ID to revoke
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async revokeSession(sessionId: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/auth/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ============================================
+  // API Key Methods
+  // ============================================
+
+  /**
+   * Gets the current API key info (not the full key)
+   * @returns {Promise<ApiResponse<ApiKeyInfo | null>>} API key info
+   */
+  async getApiKey(): Promise<ApiResponse<{
+    id: string;
+    keyPreview: string;
+    name: string;
+    createdAt: string;
+    lastUsedAt: string | null;
+  } | null>> {
+    return this.request('/auth/api-key');
+  }
+
+  /**
+   * Generates a new API key (replaces existing)
+   * @param {string} password - Account password
+   * @param {string} [twoFactorCode] - 2FA code if enabled
+   * @returns {Promise<ApiResponse<{id: string, key: string, name: string, createdAt: string}>>} New API key
+   */
+  async createApiKey(password: string, twoFactorCode?: string): Promise<ApiResponse<{
+    id: string;
+    key: string;
+    name: string;
+    createdAt: string;
+  }>> {
+    return this.request('/auth/api-key', {
+      method: 'POST',
+      body: JSON.stringify({ password, twoFactorCode }),
+    });
+  }
+
+  /**
+   * Revokes the current API key
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async deleteApiKey(): Promise<ApiResponse<void>> {
+    return this.request<void>('/auth/api-key', {
+      method: 'DELETE',
+    });
+  }
+
+  // ============================================
+  // Account Deletion Methods
+  // ============================================
+
+  /**
+   * Deletes all user data but keeps the account
+   * @param {string} password - Account password
+   * @param {string} [twoFactorCode] - 2FA code if enabled
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async deleteUserData(password: string, twoFactorCode?: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/auth/data', {
+      method: 'DELETE',
+      body: JSON.stringify({ password, twoFactorCode }),
+    });
+  }
+
+  /**
+   * Permanently deletes the account and all data
+   * @param {string} password - Account password
+   * @param {string} [twoFactorCode] - 2FA code if enabled
+   * @returns {Promise<ApiResponse<void>>} Empty response on success
+   */
+  async deleteAccount(password: string, twoFactorCode?: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/auth/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ password, twoFactorCode }),
+    });
+  }
 }
 
 /**

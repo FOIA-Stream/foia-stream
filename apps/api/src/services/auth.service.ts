@@ -23,6 +23,7 @@ import { db, schema } from '../db';
 import type { CreateUserDTO, User, UserRole } from '../types';
 import { ConflictError, DatabaseError, NotFoundError, SecurityError } from '../utils/errors';
 import { mfaService } from './mfa.service';
+import { secureSessionService } from './secure-session.service';
 import { securityMonitoring } from './security-monitoring.service';
 
 /** Encoded JWT secret for token signing/verification */
@@ -318,19 +319,18 @@ export class AuthService {
       mfaVerified: !requiresMFA, // True only if MFA is not required
     });
 
-    // Create session
-    const sessionId = nanoid();
+    // Create encrypted session
     const expiresAt = new Date(
       Date.now() + SECURITY_CONFIG.sessionExpiryDays * 24 * 60 * 60 * 1000,
     ).toISOString();
 
-    await db.insert(schema.sessions).values({
-      id: sessionId,
-      userId: user.id,
+    await secureSessionService.createSession(
+      user.id,
       token,
       expiresAt,
-      createdAt: new Date().toISOString(),
-    });
+      options?.ipAddress,
+      options?.userAgent,
+    );
 
     // Log successful login
     await securityMonitoring.logSecurityEvent({
@@ -552,6 +552,98 @@ export class AuthService {
 
     // Invalidate all sessions
     await db.delete(schema.sessions).where(eq(schema.sessions.userId, id));
+  }
+
+  /**
+   * Verify a user's password without logging in
+   */
+  async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+
+    if (!user) {
+      throw NotFoundError('User not found', { userId });
+    }
+
+    const isValid = await argon2.verify(user.passwordHash, password);
+    if (!isValid) {
+      throw new SecurityError('authentication', 'Invalid password', { userId });
+    }
+
+    return true;
+  }
+
+  /**
+   * Get all active sessions for a user (with decrypted, masked data)
+   */
+  async getUserSessions(userId: string, currentToken?: string) {
+    return secureSessionService.getUserSessions(userId, currentToken);
+  }
+
+  /**
+   * Revoke a specific session
+   */
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    const session = await db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.id, sessionId))
+      .get();
+
+    if (!session) {
+      throw NotFoundError('Session not found', { sessionId });
+    }
+
+    if (session.userId !== userId) {
+      throw new SecurityError('authorization', 'Cannot revoke another user\'s session', { userId, sessionId });
+    }
+
+    await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
+
+    await this.logAudit(userId, 'security_session_invalidated', 'session', sessionId);
+  }
+
+  /**
+   * Delete all user data but keep the account
+   */
+  async deleteUserData(userId: string): Promise<void> {
+    // Delete FOIA requests (cascades to related data)
+    await db.delete(schema.foiaRequests).where(eq(schema.foiaRequests.userId, userId));
+
+    // Delete documents uploaded by user
+    await db.delete(schema.documents).where(eq(schema.documents.uploadedBy, userId));
+
+    // Delete comments
+    await db.delete(schema.comments).where(eq(schema.comments.userId, userId));
+
+    // Delete appeals
+    await db.delete(schema.appeals).where(eq(schema.appeals.userId, userId));
+
+    // Delete templates created by user
+    await db.delete(schema.requestTemplates).where(eq(schema.requestTemplates.createdBy, userId));
+
+    // Log the action
+    await this.logAudit(userId, 'security_data_export', 'user', userId, { action: 'data_deleted' });
+  }
+
+  /**
+   * Permanently delete a user account and all data
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    // First delete all user data
+    await this.deleteUserData(userId);
+
+    // Delete API keys
+    const { apiKeys } = schema;
+    await db.delete(apiKeys).where(eq(apiKeys.userId, userId));
+
+    // Delete sessions
+    await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
+
+    // Log before deleting user
+    await this.logAudit(userId, 'user_deleted', 'user', userId);
+
+    // Finally delete the user
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
   }
 
   /**

@@ -4,8 +4,8 @@
  */
 
 import { useStore } from '@nanostores/react';
-import { Building2, Clock, FileText, Loader2, LogOut, Plus, RefreshCw, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Building2, ChevronDown, Clock, FileText, Loader2, LogOut, Plus, RefreshCw, Settings, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { api, type FoiaRequest } from '@/lib/api';
 import { formatDate, getStatusColor } from '@/lib/utils';
 import { $user, $isAuthenticated, $isLoading, logout, initAuth } from '@/stores/auth';
@@ -27,9 +27,21 @@ export default function Dashboard() {
   const authLoading = useStore($isLoading);
   const [requests, setRequests] = useState<FoiaRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initAuth();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -92,19 +104,42 @@ export default function Dashboard() {
               </span>
             </a>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-surface-400">
-                <User className="h-4 w-4" />
-                <span>{user.email}</span>
-              </div>
+            <div className="relative" ref={menuRef}>
               <button
-                onClick={handleLogout}
+                onClick={() => setShowUserMenu(!showUserMenu)}
                 type="button"
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-surface-400 transition-colors hover:bg-surface-800 hover:text-surface-100"
               >
-                <LogOut className="h-4 w-4" />
-                <span>Sign out</span>
+                <User className="h-4 w-4" />
+                <span>{user.email}</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-xl">
+                  <div className="border-b border-surface-800 px-4 py-3">
+                    <p className="text-sm font-medium text-surface-100">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs text-surface-500">{user.email}</p>
+                  </div>
+                  <div className="p-1">
+                    <a
+                      href="/settings"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-surface-300 transition-colors hover:bg-surface-800 hover:text-surface-100"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </a>
+                    <button
+                      onClick={handleLogout}
+                      type="button"
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

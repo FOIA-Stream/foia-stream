@@ -85,6 +85,33 @@ export const sessions = sqliteTable('sessions', {
     .references(() => users.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
   expiresAt: text('expires_at').notNull(),
+  /** Session metadata for device tracking */
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  deviceName: text('device_name'),
+  lastActiveAt: text('last_active_at'),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+/**
+ * API Keys table - stores user API keys for programmatic access
+ *
+ * @table api_keys
+ * @description Allows users to generate API keys for external integrations.
+ * @compliance NIST 800-53 IA-5 (Authenticator Management)
+ */
+export const apiKeys = sqliteTable('api_keys', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  /** Hashed API key (we only store the hash) */
+  keyHash: text('key_hash').notNull(),
+  /** Last 4 characters of the key for display */
+  keyPreview: text('key_preview').notNull(),
+  name: text('name').notNull().default('Default'),
+  lastUsedAt: text('last_used_at'),
+  expiresAt: text('expires_at'),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

@@ -128,12 +128,13 @@ app.route('/api/v1', api);
 /**
  * Mount OpenAPI routes with documentation
  * These routes use @hono/zod-openapi for type-safe validation
+ * All routes are prefixed with /api/v1 for consistency
  */
 app.route('/', indexRoute);
-app.route('/', authOpenAPIRoute);
-app.route('/', agenciesOpenAPIRoute);
-app.route('/', requestsOpenAPIRoute);
-app.route('/', templatesOpenAPIRoute);
+app.route('/api/v1', authOpenAPIRoute);
+app.route('/api/v1', agenciesOpenAPIRoute);
+app.route('/api/v1', requestsOpenAPIRoute);
+app.route('/api/v1', templatesOpenAPIRoute);
 
 // ============================================
 // Export App

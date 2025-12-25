@@ -82,6 +82,44 @@ export const ChangePasswordSchema = z
   })
   .openapi('ChangePassword');
 
+/**
+ * Schema for MFA setup request (requires password confirmation)
+ */
+export const MFASetupSchema = z
+  .object({
+    password: z.string().min(1, 'Password is required'),
+  })
+  .openapi('MFASetup');
+
+/**
+ * Schema for MFA verification
+ */
+export const MFAVerifySchema = z
+  .object({
+    code: z.string().length(6, 'Code must be 6 digits'),
+  })
+  .openapi('MFAVerify');
+
+/**
+ * Schema for MFA disable request
+ */
+export const MFADisableSchema = z
+  .object({
+    password: z.string().min(1, 'Password is required'),
+    code: z.string().length(6, 'Code must be 6 digits'),
+  })
+  .openapi('MFADisable');
+
+/**
+ * Schema for password-protected actions
+ */
+export const PasswordConfirmSchema = z
+  .object({
+    password: z.string().min(1, 'Password is required'),
+    twoFactorCode: z.string().optional(),
+  })
+  .openapi('PasswordConfirm');
+
 // ============================================
 // Response Schemas
 // ============================================
@@ -148,6 +186,66 @@ export const MessageResponseSchema = z
     message: z.string(),
   })
   .openapi('MessageResponse');
+
+/**
+ * MFA setup response with QR code and backup codes
+ */
+export const MFASetupResponseSchema = z
+  .object({
+    qrCodeUrl: z.string(),
+    secret: z.string(),
+    backupCodes: z.array(z.string()),
+  })
+  .openapi('MFASetupResponse');
+
+/**
+ * MFA status response
+ */
+export const MFAStatusResponseSchema = z
+  .object({
+    enabled: z.boolean(),
+    backupCodesRemaining: z.number().optional(),
+  })
+  .openapi('MFAStatusResponse');
+
+/**
+ * Session info for session management
+ */
+export const SessionResponseSchema = z
+  .object({
+    id: z.string(),
+    deviceName: z.string().nullable(),
+    ipAddress: z.string().nullable(),
+    lastActiveAt: z.string().nullable(),
+    createdAt: z.string(),
+    isCurrent: z.boolean(),
+  })
+  .openapi('SessionResponse');
+
+/**
+ * API key response
+ */
+export const ApiKeyResponseSchema = z
+  .object({
+    id: z.string(),
+    keyPreview: z.string(),
+    name: z.string(),
+    createdAt: z.string(),
+    lastUsedAt: z.string().nullable(),
+  })
+  .openapi('ApiKeyResponse');
+
+/**
+ * API key creation response (includes full key only on creation)
+ */
+export const ApiKeyCreatedResponseSchema = z
+  .object({
+    id: z.string(),
+    key: z.string(),
+    name: z.string(),
+    createdAt: z.string(),
+  })
+  .openapi('ApiKeyCreatedResponse');
 
 // ============================================
 // Route Definitions
@@ -457,6 +555,398 @@ export const changePasswordRoute = createRoute({
   },
 });
 
+// ============================================
+// MFA Routes
+// ============================================
+
+/**
+ * GET /auth/mfa/status - Get MFA status
+ */
+export const getMFAStatusRoute = createRoute({
+  path: '/auth/mfa/status',
+  method: 'get',
+  tags,
+  summary: 'Get MFA status for current user',
+  description: 'Returns whether MFA is enabled and backup codes remaining.',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: successResponse(MFAStatusResponseSchema),
+        },
+      },
+      description: 'MFA status retrieved',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Failed to get MFA status',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * POST /auth/mfa/setup - Initialize MFA setup
+ * @compliance NIST 800-53 IA-2(1) (Multi-Factor Authentication)
+ */
+export const setupMFARoute = createRoute({
+  path: '/auth/mfa/setup',
+  method: 'post',
+  tags,
+  summary: 'Initialize MFA setup',
+  description: 'Starts MFA setup process. Returns QR code URL and backup codes.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: { 'application/json': { schema: MFASetupSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: successResponse(MFASetupResponseSchema),
+        },
+      },
+      description: 'MFA setup initiated',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'MFA already enabled or invalid password',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * POST /auth/mfa/verify - Verify and enable MFA
+ */
+export const verifyMFARoute = createRoute({
+  path: '/auth/mfa/verify',
+  method: 'post',
+  tags,
+  summary: 'Verify MFA code and enable',
+  description: 'Verifies the TOTP code to complete MFA setup.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: { 'application/json': { schema: MFAVerifySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'MFA enabled successfully',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid code or MFA not in setup state',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * POST /auth/mfa/disable - Disable MFA
+ */
+export const disableMFARoute = createRoute({
+  path: '/auth/mfa/disable',
+  method: 'post',
+  tags,
+  summary: 'Disable MFA',
+  description: 'Disables MFA for the current user. Requires password and current TOTP code.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: { 'application/json': { schema: MFADisableSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'MFA disabled successfully',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid password or code',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+// ============================================
+// Session Routes
+// ============================================
+
+/**
+ * GET /auth/sessions - List active sessions
+ */
+export const getSessionsRoute = createRoute({
+  path: '/auth/sessions',
+  method: 'get',
+  tags,
+  summary: 'List active sessions',
+  description: 'Returns all active sessions for the current user.',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: successResponse(z.array(SessionResponseSchema)),
+        },
+      },
+      description: 'Sessions retrieved',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Failed to get sessions',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * DELETE /auth/sessions/:id - Revoke a session
+ */
+export const revokeSessionRoute = createRoute({
+  path: '/auth/sessions/{id}',
+  method: 'delete',
+  tags,
+  summary: 'Revoke a session',
+  description: 'Logs out a specific session by ID.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      id: z.string(),
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'Session revoked',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Failed to revoke session',
+    },
+    [HttpStatusCodes.NOT_FOUND]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Session not found',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+// ============================================
+// API Key Routes
+// ============================================
+
+/**
+ * GET /auth/api-key - Get current API key info
+ */
+export const getApiKeyRoute = createRoute({
+  path: '/auth/api-key',
+  method: 'get',
+  tags,
+  summary: 'Get API key info',
+  description: 'Returns info about the current API key (not the full key).',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: successResponse(ApiKeyResponseSchema.nullable()),
+        },
+      },
+      description: 'API key info retrieved',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Failed to get API key',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * POST /auth/api-key - Generate new API key
+ */
+export const createApiKeyRoute = createRoute({
+  path: '/auth/api-key',
+  method: 'post',
+  tags,
+  summary: 'Generate new API key',
+  description: 'Generates a new API key. If one exists, it will be replaced.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: { 'application/json': { schema: PasswordConfirmSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: successResponse(ApiKeyCreatedResponseSchema, 'API key generated. Save it now - it won\'t be shown again.'),
+        },
+      },
+      description: 'API key generated',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid password',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * DELETE /auth/api-key - Revoke API key
+ */
+export const deleteApiKeyRoute = createRoute({
+  path: '/auth/api-key',
+  method: 'delete',
+  tags,
+  summary: 'Revoke API key',
+  description: 'Revokes the current API key.',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'API key revoked',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Failed to revoke API key',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+// ============================================
+// Account Deletion Routes
+// ============================================
+
+/**
+ * DELETE /auth/data - Delete all user data
+ */
+export const deleteUserDataRoute = createRoute({
+  path: '/auth/data',
+  method: 'delete',
+  tags,
+  summary: 'Delete all user data',
+  description: 'Permanently deletes all user data (requests, documents, etc.) but keeps the account.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: { 'application/json': { schema: PasswordConfirmSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'Data deleted successfully',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid password or 2FA code',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
+/**
+ * DELETE /auth/account - Delete account
+ */
+export const deleteAccountRoute = createRoute({
+  path: '/auth/account',
+  method: 'delete',
+  tags,
+  summary: 'Delete account',
+  description: 'Permanently deletes the account and all associated data.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: { 'application/json': { schema: PasswordConfirmSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'Account deleted successfully',
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid password or 2FA code',
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Not authenticated',
+    },
+  },
+});
+
 // Type exports for handlers
 export type RegisterRoute = typeof registerRoute;
 export type LoginRoute = typeof loginRoute;
@@ -464,3 +954,14 @@ export type LogoutRoute = typeof logoutRoute;
 export type GetMeRoute = typeof getMeRoute;
 export type UpdateMeRoute = typeof updateMeRoute;
 export type ChangePasswordRoute = typeof changePasswordRoute;
+export type GetMFAStatusRoute = typeof getMFAStatusRoute;
+export type SetupMFARoute = typeof setupMFARoute;
+export type VerifyMFARoute = typeof verifyMFARoute;
+export type DisableMFARoute = typeof disableMFARoute;
+export type GetSessionsRoute = typeof getSessionsRoute;
+export type RevokeSessionRoute = typeof revokeSessionRoute;
+export type GetApiKeyRoute = typeof getApiKeyRoute;
+export type CreateApiKeyRoute = typeof createApiKeyRoute;
+export type DeleteApiKeyRoute = typeof deleteApiKeyRoute;
+export type DeleteUserDataRoute = typeof deleteUserDataRoute;
+export type DeleteAccountRoute = typeof deleteAccountRoute;

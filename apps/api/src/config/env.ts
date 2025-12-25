@@ -64,6 +64,15 @@ const EnvSchema = S.Struct({
 
   /** Allowed CORS origins - comma-separated or '*' for all */
   CORS_ORIGIN: S.String.pipe(S.optionalWith({ default: () => '*' })),
+
+  /**
+   * Data encryption key for PII at rest - must be at least 32 characters
+   * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
+   */
+  DATA_ENCRYPTION_KEY: S.String.pipe(
+    S.minLength(32),
+    S.optionalWith({ default: () => 'change-this-encryption-key-in-prod-min-32' }),
+  ),
 });
 
 /**

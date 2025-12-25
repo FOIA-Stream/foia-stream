@@ -167,11 +167,9 @@ export function sanitizeForLogging<T extends Record<string, unknown>>(
   return sanitized as Partial<T>;
 }
 
-// Export encryption key getter (should come from env)
+// Export encryption key getter (uses validated env config)
 export function getEncryptionKey(): string {
-  const key = process.env.DATA_ENCRYPTION_KEY;
-  if (!key) {
-    throw new Error('DATA_ENCRYPTION_KEY environment variable is required for encryption');
-  }
-  return key;
+  // Import here to avoid circular dependency
+  const { env } = require('../config/env');
+  return env.DATA_ENCRYPTION_KEY;
 }
