@@ -1,3 +1,14 @@
+/**
+ * @file FOIA Request Routes
+ * @module routes/requests
+ * @author FOIA Stream Team
+ * @description Handles FOIA request lifecycle including creation, submission,
+ *              status tracking, and deadline management. Supports both public
+ *              and private requests with proper access control.
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
+ * @compliance NIST 800-53 AU-2 (Audit Events) - Request state changes are logged
+ */
+
 // ============================================
 // FOIA Stream - FOIA Request Routes
 // ============================================
@@ -18,6 +29,12 @@ const requests = new Hono();
 
 /**
  * GET /requests - Search public requests
+ *
+ * @route GET /requests
+ * @group Requests - Public FOIA request search
+ * @param {RequestSearchSchema} request.query - Search filters (status, agencyId, page, pageSize)
+ * @returns {Object} 200 - Paginated list of public requests
+ * @returns {Object} 400 - Search error
  */
 requests.get('/', queryValidator(RequestSearchSchema), async (c) => {
   try {
@@ -39,6 +56,13 @@ requests.get('/', queryValidator(RequestSearchSchema), async (c) => {
 
 /**
  * GET /requests/my - Get current user's requests
+ *
+ * @route GET /requests/my
+ * @group Requests - User request management
+ * @security JWT
+ * @param {PaginationSchema} request.query - Pagination (page, pageSize)
+ * @returns {Object} 200 - Paginated list of user's requests
+ * @returns {Object} 400 - Retrieval error
  */
 requests.get('/my', authMiddleware, queryValidator(PaginationSchema), async (c) => {
   try {
@@ -60,6 +84,13 @@ requests.get('/my', authMiddleware, queryValidator(PaginationSchema), async (c) 
 
 /**
  * GET /requests/deadlines - Get requests with upcoming deadlines
+ *
+ * @route GET /requests/deadlines
+ * @group Requests - Deadline tracking
+ * @security JWT
+ * @param {number} days.query - Number of days to look ahead (default: 7)
+ * @returns {Object} 200 - List of requests with upcoming deadlines
+ * @returns {Object} 400 - Retrieval error
  */
 requests.get('/deadlines', authMiddleware, async (c) => {
   try {
@@ -78,6 +109,12 @@ requests.get('/deadlines', authMiddleware, async (c) => {
 
 /**
  * GET /requests/overdue - Get overdue requests
+ *
+ * @route GET /requests/overdue
+ * @group Requests - Deadline tracking
+ * @security JWT
+ * @returns {Object} 200 - List of overdue requests
+ * @returns {Object} 400 - Retrieval error
  */
 requests.get('/overdue', authMiddleware, async (c) => {
   try {
@@ -95,6 +132,13 @@ requests.get('/overdue', authMiddleware, async (c) => {
 
 /**
  * GET /requests/:id - Get request by ID
+ *
+ * @route GET /requests/:id
+ * @group Requests - Request retrieval
+ * @param {string} id.path.required - Request UUID
+ * @returns {Object} 200 - Request details with agency info
+ * @returns {Object} 404 - Request not found or not accessible
+ * @description Returns public requests to anyone, private requests only to owner
  */
 requests.get('/:id', optionalAuthMiddleware, paramValidator(IdParamSchema), async (c) => {
   try {
@@ -123,6 +167,14 @@ requests.get('/:id', optionalAuthMiddleware, paramValidator(IdParamSchema), asyn
 
 /**
  * POST /requests - Create new FOIA request
+ *
+ * @route POST /requests
+ * @group Requests - Request creation
+ * @security JWT
+ * @param {CreateRequestSchema} request.body.required - Request data (title, description, agencyId)
+ * @returns {Object} 201 - Created request
+ * @returns {Object} 400 - Creation error
+ * @compliance NIST 800-53 AU-2 (Audit Events) - Creation is logged
  */
 requests.post('/', authMiddleware, jsonValidator(CreateRequestSchema), async (c) => {
   try {
@@ -147,6 +199,13 @@ requests.post('/', authMiddleware, jsonValidator(CreateRequestSchema), async (c)
 
 /**
  * POST /requests/:id/submit - Submit a draft request
+ *
+ * @route POST /requests/:id/submit
+ * @group Requests - Request lifecycle
+ * @security JWT
+ * @param {string} id.path.required - Request UUID
+ * @returns {Object} 200 - Submitted request
+ * @returns {Object} 400 - Submission error (not owner or invalid state)
  */
 requests.post('/:id/submit', authMiddleware, paramValidator(IdParamSchema), async (c) => {
   try {
@@ -168,6 +227,15 @@ requests.post('/:id/submit', authMiddleware, paramValidator(IdParamSchema), asyn
 
 /**
  * PATCH /requests/:id - Update request (status, tracking, etc.)
+ *
+ * @route PATCH /requests/:id
+ * @group Requests - Request management
+ * @security JWT
+ * @param {string} id.path.required - Request UUID
+ * @param {UpdateRequestSchema} request.body.required - Updated request data
+ * @returns {Object} 200 - Updated request
+ * @returns {Object} 400 - Update error
+ * @compliance NIST 800-53 AU-2 (Audit Events) - Updates are logged
  */
 requests.patch(
   '/:id',
@@ -196,6 +264,14 @@ requests.patch(
 
 /**
  * POST /requests/:id/withdraw - Withdraw a request
+ *
+ * @route POST /requests/:id/withdraw
+ * @group Requests - Request lifecycle
+ * @security JWT
+ * @param {string} id.path.required - Request UUID
+ * @returns {Object} 200 - Withdrawn request
+ * @returns {Object} 400 - Withdrawal error (not owner or invalid state)
+ * @compliance NIST 800-53 AU-2 (Audit Events) - Withdrawal is logged
  */
 requests.post('/:id/withdraw', authMiddleware, paramValidator(IdParamSchema), async (c) => {
   try {

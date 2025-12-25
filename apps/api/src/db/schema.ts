@@ -1,3 +1,13 @@
+/**
+ * @file Database Schema
+ * @module db/schema
+ * @author FOIA Stream Team
+ * @description Drizzle ORM schema definitions for all database tables.
+ *              Includes users, sessions, agencies, FOIA requests, documents,
+ *              comments, appeals, audit logs, and statistics tables.
+ * @compliance NIST 800-53 AU-3 (Content of Audit Records), SC-28 (Protection at Rest)
+ */
+
 // ============================================
 // FOIA Stream - Database Schema (Drizzle ORM)
 // ============================================
@@ -9,10 +19,22 @@ import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 // Users & Authentication
 // ============================================
 
+/**
+ * Users table - stores all user accounts and authentication data
+ *
+ * @table users
+ * @description Core user table with authentication, profile, and security fields.
+ *              Includes account lockout fields for brute-force protection (GAP-007).
+ * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+ */
 export const users = sqliteTable('users', {
+  /** Unique user identifier (UUID) */
   id: text('id').primaryKey(),
+  /** User email address - used for login */
   email: text('email').notNull().unique(),
+  /** Argon2id hashed password */
   passwordHash: text('password_hash').notNull(),
+  /** User role for RBAC */
   role: text('role', {
     enum: [
       'civilian',
@@ -31,19 +53,31 @@ export const users = sqliteTable('users', {
   organization: text('organization'),
   isVerified: integer('is_verified', { mode: 'boolean' }).notNull().default(false),
   isAnonymous: integer('is_anonymous', { mode: 'boolean' }).notNull().default(false),
+  /** MFA enabled flag */
   twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).notNull().default(false),
+  /** Encrypted TOTP secret for MFA */
   twoFactorSecret: text('two_factor_secret'),
-  // Account lockout fields (GAP-007)
+  /**
+   * Account lockout fields (GAP-007)
+   * @compliance NIST 800-53 AC-7 (Unsuccessful Logon Attempts)
+   */
   failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
   lockedUntil: text('locked_until'),
   lastFailedLoginAt: text('last_failed_login_at'),
-  // Password management
+  /** Password management */
   passwordChangedAt: text('password_changed_at'),
   mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+/**
+ * Sessions table - stores active user sessions
+ *
+ * @table sessions
+ * @description Tracks active user sessions with JWT tokens and expiration.
+ * @compliance NIST 800-53 AC-12 (Session Termination)
+ */
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   userId: text('user_id')
@@ -58,6 +92,12 @@ export const sessions = sqliteTable('sessions', {
 // Agencies
 // ============================================
 
+/**
+ * Agencies table - government agencies that process FOIA requests
+ *
+ * @table agencies
+ * @description Stores information about federal, state, local, and county agencies.
+ */
 export const agencies = sqliteTable('agencies', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -71,7 +111,9 @@ export const agencies = sqliteTable('agencies', {
   foiaEmail: text('foia_email'),
   foiaAddress: text('foia_address'),
   foiaPortalUrl: text('foia_portal_url'),
+  /** Default response deadline in business days */
   responseDeadlineDays: integer('response_deadline_days').notNull().default(20),
+  /** Appeal deadline in business days */
   appealDeadlineDays: integer('appeal_deadline_days').notNull().default(30),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -81,6 +123,13 @@ export const agencies = sqliteTable('agencies', {
 // FOIA Requests
 // ============================================
 
+/**
+ * FOIA Requests table - tracks all public records requests
+ *
+ * @table foia_requests
+ * @description Core table for FOIA request lifecycle management.
+ *              Tracks status, deadlines, fees, and relationships to users/agencies.
+ */
 export const foiaRequests = sqliteTable('foia_requests', {
   id: text('id').primaryKey(),
   userId: text('user_id')
@@ -89,6 +138,7 @@ export const foiaRequests = sqliteTable('foia_requests', {
   agencyId: text('agency_id')
     .notNull()
     .references(() => agencies.id),
+  /** Request lifecycle status */
   status: text('status', {
     enum: [
       'draft',
@@ -107,6 +157,7 @@ export const foiaRequests = sqliteTable('foia_requests', {
   })
     .notNull()
     .default('draft'),
+  /** Record category type */
   category: text('category', {
     enum: [
       'body_cam_footage',
@@ -128,6 +179,7 @@ export const foiaRequests = sqliteTable('foia_requests', {
   dateRangeStart: text('date_range_start'),
   dateRangeEnd: text('date_range_end'),
   templateId: text('template_id').references(() => requestTemplates.id),
+  /** Agency-assigned tracking number */
   trackingNumber: text('tracking_number'),
   estimatedFee: real('estimated_fee'),
   actualFee: real('actual_fee'),
@@ -136,11 +188,18 @@ export const foiaRequests = sqliteTable('foia_requests', {
   dueDate: text('due_date'),
   completedAt: text('completed_at'),
   denialReason: text('denial_reason'),
+  /** Public visibility flag for transparency */
   isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+/**
+ * Request Templates table - reusable FOIA request templates
+ *
+ * @table request_templates
+ * @description Pre-built templates for common FOIA request types.
+ */
 export const requestTemplates = sqliteTable('request_templates', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -176,6 +235,14 @@ export const requestTemplates = sqliteTable('request_templates', {
 // Documents & Media
 // ============================================
 
+/**
+ * Documents table - stores uploaded files and media
+ *
+ * @table documents
+ * @description Tracks documents returned from FOIA requests including
+ *              body cam footage, PDFs, images, and other media types.
+ * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
+ */
 export const documents = sqliteTable('documents', {
   id: text('id').primaryKey(),
   requestId: text('request_id').references(() => foiaRequests.id),
@@ -213,6 +280,13 @@ export const documents = sqliteTable('documents', {
 // Comments & Reviews
 // ============================================
 
+/**
+ * Comments table - user comments on documents
+ *
+ * @table comments
+ * @description Allows users to annotate documents with comments, flags,
+ *              and timestamps (for video). Supports community review.
+ */
 export const comments = sqliteTable('comments', {
   id: text('id').primaryKey(),
   documentId: text('document_id')
@@ -243,6 +317,11 @@ export const comments = sqliteTable('comments', {
   updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+/**
+ * Comment Votes table - tracks user votes on comments
+ *
+ * @table comment_votes
+ */
 export const commentVotes = sqliteTable('comment_votes', {
   id: text('id').primaryKey(),
   commentId: text('comment_id')
@@ -251,7 +330,8 @@ export const commentVotes = sqliteTable('comment_votes', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  vote: integer('vote').notNull(), // 1 for upvote, -1 for downvote
+  /** 1 for upvote, -1 for downvote */
+  vote: integer('vote').notNull(),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -259,6 +339,12 @@ export const commentVotes = sqliteTable('comment_votes', {
 // Appeals
 // ============================================
 
+/**
+ * Appeals table - tracks FOIA denial appeals
+ *
+ * @table appeals
+ * @description Tracks administrative appeals of denied FOIA requests.
+ */
 export const appeals = sqliteTable('appeals', {
   id: text('id').primaryKey(),
   requestId: text('request_id')
@@ -284,6 +370,14 @@ export const appeals = sqliteTable('appeals', {
 // Audit Logs
 // ============================================
 
+/**
+ * Audit Logs table - comprehensive activity logging
+ *
+ * @table audit_logs
+ * @description Immutable audit trail for all system actions.
+ *              Required for SOC 2 and NIST 800-53 compliance.
+ * @compliance NIST 800-53 AU-3 (Content of Audit Records), AU-12 (Audit Generation)
+ */
 export const auditLogs = sqliteTable('audit_logs', {
   id: text('id').primaryKey(),
   userId: text('user_id').references(() => users.id),

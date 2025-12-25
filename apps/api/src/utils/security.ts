@@ -1,23 +1,45 @@
+/**
+ * @file Security Utilities
+ * @module utils/security
+ * @author FOIA Stream Team
+ * @description Provides encryption, hashing, and security functions
+ *              for compliance with SOC2, ISO 27001, NIST 800-53.
+ *              Includes AES-256-GCM encryption, secure token generation,
+ *              and PII masking utilities.
+ * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
+ * @compliance NIST 800-53 SC-13 (Cryptographic Protection)
+ */
+
 // ============================================
 // FOIA Stream - Security Utilities
 // ============================================
-// Provides encryption, hashing, and security functions
-// for compliance with SOC2, ISO 27001, NIST 800-53
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scryptAsync = promisify(scrypt);
 
-// Encryption configuration
+// ============================================
+// Encryption Configuration
+// ============================================
+
+/** AES-256-GCM encryption algorithm */
 const ALGORITHM = 'aes-256-gcm';
+/** Initialization vector length in bytes */
 const IV_LENGTH = 16;
+/** Authentication tag length in bytes */
 const AUTH_TAG_LENGTH = 16;
+/** Salt length for key derivation */
 const SALT_LENGTH = 32;
+/** Derived key length (256 bits for AES-256) */
 const KEY_LENGTH = 32;
 
 /**
  * Derives an encryption key from a password using scrypt
+ *
+ * @param {string} password - Password to derive key from
+ * @param {Buffer} salt - Cryptographic salt
+ * @returns {Promise<Buffer>} Derived key
  */
 async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
   return (await scryptAsync(password, salt, KEY_LENGTH)) as Buffer;
@@ -25,7 +47,16 @@ async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
 
 /**
  * Encrypts sensitive data using AES-256-GCM
- * Returns base64-encoded string: salt:iv:authTag:ciphertext
+ *
+ * @param {string} plaintext - Data to encrypt
+ * @param {string} encryptionKey - Encryption key/password
+ * @returns {Promise<string>} Base64-encoded encrypted data (salt:iv:authTag:ciphertext)
+ * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
+ *
+ * @example
+ * ```typescript
+ * const encrypted = await encryptData('sensitive data', process.env.ENCRYPTION_KEY);
+ * ```
  */
 export async function encryptData(plaintext: string, encryptionKey: string): Promise<string> {
   const salt = randomBytes(SALT_LENGTH);

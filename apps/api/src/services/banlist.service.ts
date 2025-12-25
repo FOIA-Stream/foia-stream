@@ -1,11 +1,12 @@
 /**
- * IP Banlist Service
- *
- * Manages banned and slowmode IPs/identifiers for security protection.
- * Adapted from portfolio project for FOIA Stream compliance.
- *
- * Addresses: GAP-007 (Rate Limiting Enhancement)
- * Controls: SC-5, A.8.6, 3.13.13
+ * @file IP Banlist Service
+ * @module services/banlist
+ * @author FOIA Stream Team
+ * @description Manages banned and slowmode IPs/identifiers for security protection.
+ *              Supports banning by IP address, user ID, and browser fingerprint.
+ * @compliance NIST 800-53 SC-5 (Denial of Service Protection) - GAP-007
+ * @compliance ISO 27001 A.8.6 (Capacity Management)
+ * @compliance CMMC 3.13.13 (Network Communication Protection)
  */
 
 import { Schema as S } from 'effect';

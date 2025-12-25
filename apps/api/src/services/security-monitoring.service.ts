@@ -1,11 +1,12 @@
 /**
- * Security Monitoring Service
- *
- * Real-time security event monitoring and alerting system.
- * Tracks failed logins, suspicious activity, and privilege escalation attempts.
- *
- * Addresses: GAP-002 (Security Monitoring & Alerting)
- * Controls: AU-6, CC7.2, A.8.16
+ * @file Security Monitoring Service
+ * @module services/security-monitoring
+ * @author FOIA Stream Team
+ * @description Real-time security event monitoring and alerting system.
+ *              Tracks failed logins, suspicious activity, and privilege escalation attempts.
+ * @compliance NIST 800-53 AU-6 (Audit Review, Analysis, and Reporting) - GAP-002
+ * @compliance SOC 2 CC7.2 (Security Event Monitoring)
+ * @compliance ISO 27001 A.8.16 (Monitoring Activities)
  */
 
 import { and, eq, gte, sql } from 'drizzle-orm';

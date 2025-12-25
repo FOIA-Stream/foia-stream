@@ -1,3 +1,15 @@
+/**
+ * @file Authentication Service
+ * @module services/auth
+ * @author FOIA Stream Team
+ * @description Handles user authentication, registration, session management,
+ *              password operations, and account security. Implements brute force
+ *              protection with account lockout after failed attempts.
+ * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+ * @compliance NIST 800-53 IA-5 (Authenticator Management)
+ * @compliance NIST 800-53 AC-7 (Unsuccessful Logon Attempts)
+ */
+
 // ============================================
 // FOIA Stream - Authentication Service
 // ============================================
@@ -13,32 +25,84 @@ import { ConflictError, DatabaseError, NotFoundError, SecurityError } from '../u
 import { mfaService } from './mfa.service';
 import { securityMonitoring } from './security-monitoring.service';
 
+/** Encoded JWT secret for token signing/verification */
 const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
-// Security configuration
+/**
+ * Security configuration for account protection
+ * @constant
+ * @compliance NIST 800-53 AC-7 (Unsuccessful Logon Attempts)
+ */
 const SECURITY_CONFIG = {
+  /** Maximum failed login attempts before account lockout */
   maxFailedAttempts: 5,
+  /** Duration of account lockout in minutes */
   lockoutDurationMinutes: 30,
+  /** Session expiry in days */
   sessionExpiryDays: 7,
 };
 
+/**
+ * JWT payload structure
+ * @interface
+ */
 export interface JWTPayload {
+  /** User's unique identifier */
   userId: string;
+  /** User's email address */
   email: string;
+  /** User's role for RBAC */
   role: UserRole;
+  /** Whether MFA has been verified for this session */
   mfaVerified?: boolean;
 }
 
+/**
+ * Result returned from successful login
+ * @interface
+ */
 export interface LoginResult {
+  /** JWT authentication token */
   token: string;
+  /** User data (excluding password hash) */
   user: Omit<User, 'passwordHash'>;
+  /** Whether MFA verification is required */
   requiresMFA: boolean;
+  /** MFA token for second-factor verification */
   mfaToken?: string;
 }
 
+/**
+ * Authentication Service
+ *
+ * @class AuthService
+ * @description Provides user authentication, registration, and session management.
+ *              Implements security controls for brute force protection and audit logging.
+ * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+ *
+ * @example
+ * ```typescript
+ * const authService = new AuthService();
+ *
+ * // Register new user
+ * const user = await authService.createUser({
+ *   email: 'user@example.com',
+ *   password: 'SecurePassword123!',
+ *   name: 'John Doe'
+ * });
+ *
+ * // Login
+ * const { token, user } = await authService.login('user@example.com', 'SecurePassword123!');
+ * ```
+ */
 export class AuthService {
   /**
-   * Check if account is locked
+   * Check if account is locked due to failed login attempts
+   *
+   * @private
+   * @param {string} userId - User ID to check
+   * @returns {Promise<boolean>} True if account is locked
+   * @compliance NIST 800-53 AC-7 (Unsuccessful Logon Attempts)
    */
   private async isAccountLocked(userId: string): Promise<boolean> {
     const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();

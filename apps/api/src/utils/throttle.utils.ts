@@ -1,10 +1,11 @@
 /**
- * Throttle and Debounce Utilities
- *
- * Provides functions to limit the rate at which functions can be called.
- * Useful for preventing excessive API calls and managing request frequency.
- *
- * Adapted from portfolio security utilities with Effect Schema.
+ * @file Throttle and Debounce Utilities
+ * @module utils/throttle
+ * @author FOIA Stream Team
+ * @description Provides functions to limit the rate at which functions can be called.
+ *              Useful for preventing excessive API calls and managing request frequency.
+ *              Includes throttle, debounce, rate limiter, and queue utilities.
+ * @compliance NIST 800-53 SC-5 (Denial of Service Protection)
  */
 
 import { Schema as S } from 'effect';

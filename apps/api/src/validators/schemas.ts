@@ -1,3 +1,12 @@
+/**
+ * @file Validation Schemas (Effect Schema)
+ * @module validators/schemas
+ * @author FOIA Stream Team
+ * @description Effect Schema definitions for API input validation.
+ *              Provides type-safe validation for users, agencies, requests, and templates.
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
+ */
+
 // ============================================
 // FOIA Stream - Validation Schemas (Effect Schema)
 // ============================================

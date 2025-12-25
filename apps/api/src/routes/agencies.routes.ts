@@ -1,3 +1,12 @@
+/**
+ * @file Agency Routes
+ * @module routes/agencies
+ * @author FOIA Stream Team
+ * @description Handles government agency management including search, CRUD operations,
+ *              and statistics retrieval. Admin-only operations are protected by RBAC.
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
+ */
+
 // ============================================
 // FOIA Stream - Agency Routes
 // ============================================
@@ -17,6 +26,12 @@ const agencies = new Hono();
 
 /**
  * GET /agencies - Search agencies
+ *
+ * @route GET /agencies
+ * @group Agencies - Agency search and retrieval
+ * @param {AgencySearchSchema} request.query - Search filters (name, state, level, page, pageSize)
+ * @returns {Object} 200 - Paginated list of agencies
+ * @returns {Object} 400 - Search error
  */
 agencies.get('/', effectValidator('query', AgencySearchSchema), async (c) => {
   try {
@@ -38,6 +53,10 @@ agencies.get('/', effectValidator('query', AgencySearchSchema), async (c) => {
 
 /**
  * GET /agencies/states - Get US states list
+ *
+ * @route GET /agencies/states
+ * @group Agencies - Reference data
+ * @returns {Object} 200 - Array of US state codes and names
  */
 agencies.get('/states', (c) => {
   return c.json({
@@ -48,6 +67,12 @@ agencies.get('/states', (c) => {
 
 /**
  * GET /agencies/:id - Get agency by ID
+ *
+ * @route GET /agencies/:id
+ * @group Agencies - Agency retrieval
+ * @param {string} id.path.required - Agency UUID
+ * @returns {Object} 200 - Agency details
+ * @returns {Object} 404 - Agency not found
  */
 agencies.get('/:id', effectValidator('param', IdParamSchema), async (c) => {
   try {
@@ -70,6 +95,12 @@ agencies.get('/:id', effectValidator('param', IdParamSchema), async (c) => {
 
 /**
  * GET /agencies/:id/stats - Get agency statistics
+ *
+ * @route GET /agencies/:id/stats
+ * @group Agencies - Agency analytics
+ * @param {string} id.path.required - Agency UUID
+ * @returns {Object} 200 - Agency response time and approval statistics
+ * @returns {Object} 400 - Statistics retrieval error
  */
 agencies.get('/:id/stats', effectValidator('param', IdParamSchema), async (c) => {
   try {
@@ -88,6 +119,15 @@ agencies.get('/:id/stats', effectValidator('param', IdParamSchema), async (c) =>
 
 /**
  * POST /agencies - Create new agency (admin only)
+ *
+ * @route POST /agencies
+ * @group Agencies - Agency management
+ * @security JWT - Admin role required
+ * @param {CreateAgencySchema} request.body.required - Agency data
+ * @returns {Object} 201 - Created agency
+ * @returns {Object} 400 - Creation error
+ * @returns {Object} 403 - Forbidden (non-admin)
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
  */
 agencies.post(
   '/',
@@ -116,6 +156,16 @@ agencies.post(
 
 /**
  * PATCH /agencies/:id - Update agency (admin only)
+ *
+ * @route PATCH /agencies/:id
+ * @group Agencies - Agency management
+ * @security JWT - Admin role required
+ * @param {string} id.path.required - Agency UUID
+ * @param {UpdateAgencySchema} request.body.required - Updated agency data
+ * @returns {Object} 200 - Updated agency
+ * @returns {Object} 400 - Update error
+ * @returns {Object} 403 - Forbidden (non-admin)
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
  */
 agencies.patch(
   '/:id',

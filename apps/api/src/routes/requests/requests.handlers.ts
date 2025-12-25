@@ -1,0 +1,264 @@
+/**
+ * @file FOIA Request Handlers
+ * @module routes/requests/handlers
+ * @author FOIA Stream Team
+ * @description Handler implementations for FOIA request OpenAPI routes.
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
+ * @compliance NIST 800-53 AU-2 (Audit Events)
+ */
+
+import { HttpStatusCodes } from '../../lib/constants';
+import type { AppRouteHandler } from '../../lib/types';
+import { foiaRequestService } from '../../services/foia-request.service';
+import type {
+  createRequestRoute,
+  getDeadlinesRoute,
+  getMyRequestsRoute,
+  getOverdueRoute,
+  getRequestRoute,
+  searchRequestsRoute,
+  submitRequestRoute,
+  updateRequestRoute,
+  withdrawRequestRoute,
+} from './requests.routes';
+
+// ============================================
+// Handler Implementations
+// ============================================
+
+/**
+ * Search public requests handler
+ */
+export const searchRequests: AppRouteHandler<typeof searchRequestsRoute> = async (c) => {
+  try {
+    const { status, agencyId, category, page, pageSize } = c.req.valid('query');
+
+    const result = await foiaRequestService.searchRequests(
+      { status, agencyId, category },
+      page ?? 1,
+      pageSize ?? 20,
+    );
+
+    return c.json(
+      {
+        success: true as const,
+        data: result.data,
+        pagination: {
+          page: result.pagination.page,
+          pageSize: result.pagination.pageSize,
+          totalItems: result.pagination.totalItems,
+          totalPages: result.pagination.totalPages,
+        },
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Search failed';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Get current user's requests handler
+ */
+export const getMyRequests: AppRouteHandler<typeof getMyRequestsRoute> = async (c) => {
+  try {
+    const { userId } = c.get('user');
+    const { page, pageSize } = c.req.valid('query');
+
+    const result = await foiaRequestService.getUserRequests(userId, page ?? 1, pageSize ?? 20);
+
+    return c.json(
+      {
+        success: true as const,
+        data: result.data,
+        pagination: {
+          page: result.pagination.page,
+          pageSize: result.pagination.pageSize,
+          totalItems: result.pagination.totalItems,
+          totalPages: result.pagination.totalPages,
+        },
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get requests';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Get requests with upcoming deadlines handler
+ */
+export const getDeadlines: AppRouteHandler<typeof getDeadlinesRoute> = async (c) => {
+  try {
+    const { days } = c.req.valid('query');
+    const requests = await foiaRequestService.getUpcomingDeadlines(days ?? 7);
+
+    return c.json(
+      {
+        success: true as const,
+        data: requests,
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get deadlines';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Get overdue requests handler
+ */
+export const getOverdue: AppRouteHandler<typeof getOverdueRoute> = async (c) => {
+  try {
+    const requests = await foiaRequestService.getOverdueRequests();
+
+    return c.json(
+      {
+        success: true as const,
+        data: requests,
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get overdue requests';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Get request by ID handler
+ */
+export const getRequest: AppRouteHandler<typeof getRequestRoute> = async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const request = await foiaRequestService.getRequestWithAgency(id);
+
+    if (!request) {
+      return c.json(
+        { success: false as const, error: 'Request not found' },
+        HttpStatusCodes.NOT_FOUND,
+      );
+    }
+
+    // Check if request is public or belongs to user
+    // Note: This route doesn't have auth middleware, so user may be undefined
+    const user = c.get('user');
+    if (!request.isPublic && (!user || request.userId !== user.userId)) {
+      return c.json(
+        { success: false as const, error: 'Request not found' },
+        HttpStatusCodes.NOT_FOUND,
+      );
+    }
+
+    return c.json(
+      {
+        success: true as const,
+        data: request,
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get request';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Create new FOIA request handler
+ */
+export const createRequest: AppRouteHandler<typeof createRequestRoute> = async (c) => {
+  try {
+    const { userId } = c.get('user');
+    const data = c.req.valid('json');
+
+    const request = await foiaRequestService.createRequest(userId, data);
+
+    return c.json(
+      {
+        success: true as const,
+        data: request,
+        message: 'Request created successfully',
+      },
+      HttpStatusCodes.CREATED,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create request';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Submit a draft request handler
+ */
+export const submitRequest: AppRouteHandler<typeof submitRequestRoute> = async (c) => {
+  try {
+    const { userId } = c.get('user');
+    const { id } = c.req.valid('param');
+
+    const request = await foiaRequestService.submitRequest(id, userId);
+
+    return c.json(
+      {
+        success: true as const,
+        data: request,
+        message: 'Request submitted successfully',
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to submit request';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Update request handler
+ */
+export const updateRequest: AppRouteHandler<typeof updateRequestRoute> = async (c) => {
+  try {
+    const { userId } = c.get('user');
+    const { id } = c.req.valid('param');
+    const data = c.req.valid('json');
+
+    const request = await foiaRequestService.updateRequest(id, userId, data);
+
+    return c.json(
+      {
+        success: true as const,
+        data: request,
+        message: 'Request updated successfully',
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update request';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};
+
+/**
+ * Withdraw a request handler
+ */
+export const withdrawRequest: AppRouteHandler<typeof withdrawRequestRoute> = async (c) => {
+  try {
+    const { userId } = c.get('user');
+    const { id } = c.req.valid('param');
+
+    const request = await foiaRequestService.withdrawRequest(id, userId);
+
+    return c.json(
+      {
+        success: true as const,
+        data: request,
+        message: 'Request withdrawn successfully',
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to withdraw request';
+    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+  }
+};

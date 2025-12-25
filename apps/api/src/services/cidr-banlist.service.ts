@@ -1,11 +1,12 @@
 /**
- * CIDR Range Banlist Service
- *
- * Provides IP range-based banning using CIDR notation.
- * Supports both IPv4 and IPv6 address ranges.
- *
- * Addresses: GAP-007 (Rate Limiting Enhancement)
- * Controls: SC-5, A.8.6, 3.13.13
+ * @file CIDR Range Banlist Service
+ * @module services/cidr-banlist
+ * @author FOIA Stream Team
+ * @description Provides IP range-based banning using CIDR notation.
+ *              Supports both IPv4 and IPv6 address ranges for comprehensive network blocking.
+ * @compliance NIST 800-53 SC-5 (Denial of Service Protection) - GAP-007
+ * @compliance ISO 27001 A.8.6 (Capacity Management)
+ * @compliance CMMC 3.13.13 (Network Communication Protection)
  */
 
 import { Schema as S } from 'effect';

@@ -1,13 +1,22 @@
+/**
+ * @file Multi-Factor Authentication Service
+ * @module services/mfa
+ * @author FOIA Stream Team
+ * @description Provides TOTP-based two-factor authentication for enhanced security.
+ *              Includes backup codes for account recovery scenarios.
+ * @compliance NIST 800-53 IA-2(1) (Multi-Factor Authentication)
+ * @compliance SOC 2 CC6.1 (Logical Access Security)
+ * @compliance ISO 27001 A.8.5 (Secure Authentication)
+ */
+
 // ============================================
 // FOIA Stream - Multi-Factor Authentication Service
 // ============================================
-// Provides TOTP-based 2FA for compliance
-// Compliance: NIST IA-2(1), SOC2 CC6.1, ISO A.8.5
 
-import { createHmac, randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { Schema as S } from 'effect';
 import { nanoid } from 'nanoid';
+import { createHmac, randomBytes } from 'node:crypto';
 import { db, schema } from '../db';
 import { BadRequestError, NotFoundError, SecurityError } from '../utils/errors';
 import { decryptData, encryptData, getEncryptionKey } from '../utils/security';

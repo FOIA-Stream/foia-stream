@@ -1,10 +1,11 @@
 /**
- * Base Error Classes with Effect Integration
- *
- * Provides structured error handling with rich context, making errors
- * easier to track, debug, and handle throughout the application.
- *
- * Adapted from portfolio error utilities with Effect Schema.
+ * @file Base Error Classes with Effect Integration
+ * @module utils/errors
+ * @author FOIA Stream Team
+ * @description Provides structured error handling with rich context, making errors
+ *              easier to track, debug, and handle throughout the application.
+ *              Includes specialized errors for HTTP responses, validation, and security.
+ * @compliance NIST 800-53 SI-11 (Error Handling)
  */
 
 import { Data, type ParseResult, Schema as S } from 'effect';

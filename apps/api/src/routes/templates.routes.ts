@@ -1,3 +1,13 @@
+/**
+ * @file Template Routes
+ * @module routes/templates
+ * @author FOIA Stream Team
+ * @description Handles FOIA request template management including search, retrieval,
+ *              and creation of reusable request templates. Official templates can
+ *              only be created by admins.
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
+ */
+
 // ============================================
 // FOIA Stream - Template Routes
 // ============================================
@@ -17,6 +27,12 @@ const templates = new Hono();
 
 /**
  * GET /templates - Search templates
+ *
+ * @route GET /templates
+ * @group Templates - Template search and retrieval
+ * @param {TemplateSearchSchema} request.query - Search filters (query, category, page, pageSize)
+ * @returns {Object} 200 - Paginated list of templates
+ * @returns {Object} 400 - Search error
  */
 templates.get('/', effectValidator('query', TemplateSearchSchema), async (c) => {
   try {
@@ -36,6 +52,11 @@ templates.get('/', effectValidator('query', TemplateSearchSchema), async (c) => 
 
 /**
  * GET /templates/official - Get official templates
+ *
+ * @route GET /templates/official
+ * @group Templates - Official templates
+ * @returns {Object} 200 - List of official templates
+ * @returns {Object} 400 - Retrieval error
  */
 templates.get('/official', async (c) => {
   try {
@@ -53,6 +74,12 @@ templates.get('/official', async (c) => {
 
 /**
  * GET /templates/category/:category - Get templates by category
+ *
+ * @route GET /templates/category/:category
+ * @group Templates - Template retrieval
+ * @param {string} category.path.required - Template category
+ * @returns {Object} 200 - List of templates in category
+ * @returns {Object} 400 - Retrieval error
  */
 templates.get('/category/:category', effectValidator('param', CategoryParamSchema), async (c) => {
   try {
@@ -71,6 +98,12 @@ templates.get('/category/:category', effectValidator('param', CategoryParamSchem
 
 /**
  * GET /templates/:id - Get template by ID
+ *
+ * @route GET /templates/:id
+ * @group Templates - Template retrieval
+ * @param {string} id.path.required - Template UUID
+ * @returns {Object} 200 - Template details
+ * @returns {Object} 404 - Template not found
  */
 templates.get('/:id', effectValidator('param', IdParamSchema), async (c) => {
   try {
@@ -93,6 +126,15 @@ templates.get('/:id', effectValidator('param', IdParamSchema), async (c) => {
 
 /**
  * POST /templates - Create new template
+ *
+ * @route POST /templates
+ * @group Templates - Template management
+ * @security JWT
+ * @param {CreateTemplateSchema} request.body.required - Template data
+ * @returns {Object} 201 - Created template
+ * @returns {Object} 400 - Creation error
+ * @returns {Object} 403 - Forbidden (official template without admin role)
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
  */
 templates.post('/', authMiddleware, effectValidator('json', CreateTemplateSchema), async (c) => {
   try {
@@ -122,6 +164,14 @@ templates.post('/', authMiddleware, effectValidator('json', CreateTemplateSchema
 
 /**
  * POST /templates/seed - Seed default templates (admin only)
+ *
+ * @route POST /templates/seed
+ * @group Templates - Template management
+ * @security JWT - Admin role required
+ * @returns {Object} 200 - Seed success message
+ * @returns {Object} 400 - Seed error
+ * @returns {Object} 403 - Forbidden (non-admin)
+ * @description Seeds the database with default official FOIA request templates
  */
 templates.post('/seed', authMiddleware, requireAdmin, async (c) => {
   try {

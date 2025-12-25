@@ -1,8 +1,12 @@
 /**
- * Rate Limiting Middleware
- *
- * Provides protection against brute force and DDoS attacks.
- * Integrates with banlist service for IP blocking and slowmode.
+ * @file Rate Limiting Middleware
+ * @module middleware/rate-limit
+ * @author FOIA Stream Team
+ * @description Provides protection against brute force and DDoS attacks.
+ *              Integrates with banlist service for IP blocking and slowmode.
+ *              Implements multiple rate limiting strategies including fixed window
+ *              and sliding window algorithms.
+ * @compliance NIST 800-53 SC-5 (Denial of Service Protection)
  *
  * Addresses: GAP-007 (Rate Limiting)
  * Controls: SC-5, A.8.6, 3.13.13
@@ -694,6 +698,6 @@ export {
   KeyedThrottle,
   LeakyBucketLimiter,
   SlidingWindowCounter,
-  TokenBucketLimiter,
   throttle,
+  TokenBucketLimiter,
 } from '../utils/throttle.utils';

@@ -1,10 +1,13 @@
 /**
- * Data Retention Service
+ * @file Data Retention Service
+ * @module services/data-retention
+ * @author FOIA Stream Team
+ * @description Implements automated data retention and purging per compliance policy.
+ *              References: compliance/privacy/data-retention-policy.md
+ * @compliance GDPR Article 17 (Right to Erasure)
+ * @compliance NIST 800-53 SI-12 (Information Handling and Retention)
  *
- * Implements automated data retention and purging per compliance policy.
- * References: compliance/privacy/data-retention-policy.md
- *
- * Retention Periods:
+ * @see Retention Periods:
  * - Active FOIA requests: Indefinite
  * - Closed FOIA requests: 7 years
  * - Inactive user accounts: 2 years

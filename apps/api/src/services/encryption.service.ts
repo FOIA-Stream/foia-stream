@@ -1,15 +1,16 @@
 /**
- * Encryption at Rest Service
- *
- * Provides field-level encryption for sensitive data in SQLite database.
- * Implements AES-256-GCM encryption for data at rest compliance.
- *
- * Addresses: GAP-001 (Encryption at Rest)
- * Controls: SC-28, A.8.24, 3.13.16
+ * @file Encryption at Rest Service
+ * @module services/encryption
+ * @author FOIA Stream Team
+ * @description Provides field-level encryption for sensitive data in SQLite database.
+ *              Implements AES-256-GCM encryption for data at rest compliance.
+ * @compliance NIST 800-53 SC-28 (Protection of Information at Rest) - GAP-001
+ * @compliance ISO 27001 A.8.24 (Use of Cryptography)
+ * @compliance CMMC 3.13.16 (Protecting CUI at Rest)
  */
 
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { Schema as S } from 'effect';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { env } from '../config/env';
 
 // ============================================

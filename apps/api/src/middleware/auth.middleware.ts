@@ -1,3 +1,12 @@
+/**
+ * @file Authentication Middleware
+ * @module middleware/auth
+ * @author FOIA Stream Team
+ * @description Provides JWT-based authentication and role-based authorization
+ *              middleware for protecting API routes.
+ * @compliance NIST 800-53 AC-3 (Access Enforcement), IA-2 (Identification and Authentication)
+ */
+
 // ============================================
 // FOIA Stream - Authentication Middleware
 // ============================================
@@ -15,6 +24,18 @@ declare module 'hono' {
 
 /**
  * Authentication middleware - requires valid JWT
+ *
+ * @function authMiddleware
+ * @param {Context} c - Hono context
+ * @param {Next} next - Next middleware function
+ * @returns {Promise<Response | undefined>} 401 response if unauthorized, otherwise continues
+ * @throws Returns 401 if Authorization header is missing or token is invalid
+ * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+ *
+ * @example
+ * ```typescript
+ * app.use('/api/protected/*', authMiddleware);
+ * ```
  */
 export async function authMiddleware(c: Context, next: Next): Promise<Response | undefined> {
   const authHeader = c.req.header('Authorization');
@@ -37,6 +58,18 @@ export async function authMiddleware(c: Context, next: Next): Promise<Response |
 
 /**
  * Optional authentication middleware - sets user if token provided
+ *
+ * @function optionalAuthMiddleware
+ * @param {Context} c - Hono context
+ * @param {Next} next - Next middleware function
+ * @returns {Promise<void>}
+ * @description Attempts to authenticate but continues even if no token or invalid token.
+ *              Useful for routes that behave differently for authenticated users.
+ *
+ * @example
+ * ```typescript
+ * app.use('/api/public/*', optionalAuthMiddleware);
+ * ```
  */
 export async function optionalAuthMiddleware(c: Context, next: Next): Promise<void> {
   const authHeader = c.req.header('Authorization');
@@ -56,7 +89,19 @@ export async function optionalAuthMiddleware(c: Context, next: Next): Promise<vo
 }
 
 /**
- * Role-based authorization middleware
+ * Role-based authorization middleware factory
+ *
+ * @function requireRoles
+ * @param {...UserRole} allowedRoles - Roles that are permitted to access the route
+ * @returns {MiddlewareHandler} Middleware that checks if user has required role
+ * @throws Returns 401 if not authenticated, 403 if insufficient permissions
+ * @compliance NIST 800-53 AC-3 (Access Enforcement)
+ *
+ * @example
+ * ```typescript
+ * app.post('/api/admin/users', requireRoles('admin'), createUserHandler);
+ * app.get('/api/agency/requests', requireRoles('admin', 'agency_official'), listRequestsHandler);
+ * ```
  */
 export function requireRoles(...allowedRoles: UserRole[]) {
   return async (c: Context, next: Next): Promise<Response | undefined> => {
@@ -76,11 +121,18 @@ export function requireRoles(...allowedRoles: UserRole[]) {
 }
 
 /**
- * Admin-only middleware
+ * Admin-only middleware - shorthand for requireRoles('admin')
+ *
+ * @constant
+ * @type {MiddlewareHandler}
+ * @compliance NIST 800-53 AC-6 (Least Privilege)
  */
 export const requireAdmin = requireRoles('admin');
 
 /**
- * Agency official middleware
+ * Agency official middleware - allows admin and agency_official roles
+ *
+ * @constant
+ * @type {MiddlewareHandler}
  */
 export const requireAgencyOfficial = requireRoles('admin', 'agency_official');

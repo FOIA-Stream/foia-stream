@@ -1,8 +1,23 @@
+/**
+ * @file Type Definitions
+ * @module types
+ * @author FOIA Stream Team
+ * @description Central type definitions for the FOIA Stream API.
+ *              Defines all interfaces, types, and DTOs used across the application.
+ */
+
 // ============================================
 // FOIA Stream - Type Definitions
 // ============================================
 
-// User Roles
+// ============================================
+// User Types
+// ============================================
+
+/**
+ * User role types for role-based access control (RBAC)
+ * @compliance NIST 800-53 AC-2 (Account Management)
+ */
 export type UserRole =
   | 'civilian'
   | 'journalist'
@@ -12,51 +27,105 @@ export type UserRole =
   | 'agency_official'
   | 'admin';
 
-// User Types
+/**
+ * User account representation
+ * @interface
+ */
 export interface User {
+  /** Unique user identifier (nanoid) */
   id: string;
+  /** User's email address (unique) */
   email: string;
+  /** Argon2 hashed password */
   passwordHash: string;
+  /** User's role for RBAC */
   role: UserRole;
+  /** User's first name */
   firstName: string;
+  /** User's last name */
   lastName: string;
+  /** Organization/employer name */
   organization?: string | null;
+  /** Email verification status */
   isVerified: boolean;
+  /** Whether user is anonymous */
   isAnonymous: boolean;
+  /** MFA enabled status */
   twoFactorEnabled: boolean;
+  /** Account creation timestamp */
   createdAt: string;
+  /** Last update timestamp */
   updatedAt: string;
 }
 
+/**
+ * User session for JWT token management
+ * @interface
+ */
 export interface UserSession {
+  /** Session identifier */
   id: string;
+  /** Associated user ID */
   userId: string;
+  /** JWT token */
   token: string;
+  /** Token expiration timestamp */
   expiresAt: string;
+  /** Session creation timestamp */
   createdAt: string;
 }
 
+// ============================================
 // Agency Types
+// ============================================
+
+/**
+ * Government agency jurisdiction levels
+ */
 export type JurisdictionLevel = 'federal' | 'state' | 'local' | 'county';
 
+/**
+ * Government agency that can receive FOIA requests
+ * @interface
+ */
 export interface Agency {
+  /** Agency identifier */
   id: string;
+  /** Official agency name */
   name: string;
+  /** Common abbreviation (e.g., FBI, DOJ) */
   abbreviation: string;
+  /** Jurisdiction level */
   jurisdictionLevel: JurisdictionLevel;
+  /** State code for state/local agencies */
   state?: string | null;
+  /** City name for local agencies */
   city?: string | null;
+  /** County name for county agencies */
   county?: string | null;
+  /** FOIA request email address */
   foiaEmail?: string | null;
+  /** FOIA request mailing address */
   foiaAddress?: string | null;
+  /** Online FOIA portal URL */
   foiaPortalUrl?: string | null;
+  /** Days allowed for initial response */
   responseDeadlineDays: number;
+  /** Days allowed to file appeal */
   appealDeadlineDays: number;
+  /** Creation timestamp */
   createdAt: string;
+  /** Last update timestamp */
   updatedAt: string;
 }
 
+// ============================================
 // FOIA Request Types
+// ============================================
+
+/**
+ * FOIA request lifecycle status
+ */
 export type RequestStatus =
   | 'draft'
   | 'submitted'

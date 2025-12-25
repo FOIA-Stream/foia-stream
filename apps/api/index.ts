@@ -1,3 +1,21 @@
+/**
+ * @file Server Entry Point
+ * @module api
+ * @author FOIA Stream Team
+ * @description Main entry point for the FOIA Stream API server.
+ *              Initializes the Bun HTTP server and schedules background jobs
+ *              like data retention in production environments.
+ *
+ * @example
+ * ```bash
+ * # Development
+ * bun run dev
+ *
+ * # Production
+ * bun run start
+ * ```
+ */
+
 // ============================================
 // FOIA Stream - Server Entry Point
 // ============================================

@@ -1,3 +1,12 @@
+/**
+ * @file Request Templates Service
+ * @module services/template
+ * @author FOIA Stream Team
+ * @description Manages FOIA request templates including official templates,
+ *              user-created templates, search functionality, and template seeding.
+ *              Templates help users create effective FOIA requests.
+ */
+
 // ============================================
 // FOIA Stream - Request Templates Service
 // ============================================
@@ -7,21 +16,44 @@ import { nanoid } from 'nanoid';
 import { db, schema } from '../db';
 import type { JurisdictionLevel, PaginationInfo, RecordCategory, RequestTemplate } from '../types';
 
+/**
+ * Data transfer object for creating a template
+ * @interface
+ */
 export interface CreateTemplateDTO {
+  /** Template name/title */
   name: string;
+  /** Record category this template is for */
   category: RecordCategory;
+  /** Brief description of the template's purpose */
   description: string;
+  /** Full template text with placeholders */
   templateText: string;
+  /** Jurisdiction level this applies to */
   jurisdictionLevel?: JurisdictionLevel;
+  /** Whether this is an official/verified template */
   isOfficial?: boolean;
 }
 
+/**
+ * Generic paginated result structure
+ * @interface
+ * @template T - Type of data items
+ */
 export interface PaginatedResult<T> {
+  /** Array of result items */
   data: T[];
+  /** Pagination metadata */
   pagination: PaginationInfo;
 }
 
-// Pre-built request templates for common FOIA requests
+/**
+ * Pre-built request templates for common FOIA requests
+ *
+ * @constant
+ * @description Default templates covering common FOIA request types including
+ *              body camera footage, use of force reports, arrest records, etc.
+ */
 export const DEFAULT_TEMPLATES: Omit<CreateTemplateDTO, 'isOfficial'>[] = [
   {
     name: 'Body Camera Footage Request',

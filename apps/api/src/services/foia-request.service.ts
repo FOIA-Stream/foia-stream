@@ -1,3 +1,14 @@
+/**
+ * @file FOIA Request Service
+ * @module services/foia-request
+ * @author FOIA Stream Team
+ * @description Handles FOIA request lifecycle including creation, submission,
+ *              status updates, deadline tracking, and statistics. Implements
+ *              encryption for sensitive content and audit logging.
+ * @compliance NIST 800-53 AU-2 (Audit Events)
+ * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
+ */
+
 // ============================================
 // FOIA Stream - FOIA Request Service
 // ============================================
@@ -17,7 +28,12 @@ import type {
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { decryptSensitiveFields, encryptSensitiveFields } from './encryption.service';
 
+/**
+ * FOIA request with joined agency information
+ * @interface
+ */
 export interface RequestWithAgency extends FOIARequest {
+  /** Associated agency details */
   agency: {
     id: string;
     name: string;
@@ -26,15 +42,52 @@ export interface RequestWithAgency extends FOIARequest {
   };
 }
 
+/**
+ * Generic paginated result structure
+ * @interface
+ * @template T - Type of data items
+ */
 export interface PaginatedResult<T> {
+  /** Array of result items */
   data: T[];
+  /** Pagination metadata */
   pagination: PaginationInfo;
 }
 
+/**
+ * FOIA Request Service
+ *
+ * @class FOIARequestService
+ * @description Manages the complete FOIA request lifecycle from draft creation
+ *              to completion. Handles encryption of sensitive content, deadline
+ *              calculation, and maintains audit trail of all changes.
+ * @compliance NIST 800-53 AU-2 (Audit Events) - All state changes are logged
+ * @compliance NIST 800-53 SC-28 (Protection of Information at Rest) - Sensitive fields encrypted
+ *
+ * @example
+ * ```typescript
+ * const foiaService = new FOIARequestService();
+ *
+ * // Create draft request
+ * const request = await foiaService.createRequest(userId, {
+ *   title: 'Body Camera Footage Request',
+ *   description: 'Requesting footage from incident...',
+ *   agencyId: 'agency-123'
+ * });
+ *
+ * // Submit the request
+ * await foiaService.submitRequest(request.id, userId);
+ * ```
+ */
 export class FOIARequestService {
   /**
    * Create a new FOIA request (draft)
    * Encrypts sensitive fields before storage
+   *
+   * @param {string} userId - ID of the user creating the request
+   * @param {CreateRequestDTO} data - Request data
+   * @returns {Promise<FOIARequest>} Created request
+   * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
    */
   async createRequest(userId: string, data: CreateRequestDTO): Promise<FOIARequest> {
     const id = nanoid();

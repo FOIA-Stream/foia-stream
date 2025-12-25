@@ -1,3 +1,12 @@
+/**
+ * @file Agency Service
+ * @module services/agency
+ * @author FOIA Stream Team
+ * @description Handles government agency management including CRUD operations,
+ *              search functionality, and agency statistics retrieval.
+ *              Supports federal, state, and local jurisdiction levels.
+ */
+
 // ============================================
 // FOIA Stream - Agency Service
 // ============================================
@@ -7,34 +16,84 @@ import { nanoid } from 'nanoid';
 import { db, schema } from '../db';
 import type { Agency, JurisdictionLevel, PaginationInfo } from '../types';
 
+/**
+ * Data transfer object for creating a new agency
+ * @interface
+ */
 export interface CreateAgencyDTO {
+  /** Official agency name */
   name: string;
+  /** Common abbreviation (e.g., FBI, DOJ) */
   abbreviation?: string;
+  /** Jurisdiction level (federal, state, local) */
   jurisdictionLevel: JurisdictionLevel;
+  /** State code for state/local agencies */
   state?: string;
+  /** City name for local agencies */
   city?: string;
+  /** County name for county agencies */
   county?: string;
+  /** Email address for FOIA requests */
   foiaEmail?: string;
+  /** Mailing address for FOIA requests */
   foiaAddress?: string;
+  /** URL of online FOIA portal */
   foiaPortalUrl?: string;
+  /** Days allowed for initial response */
   responseDeadlineDays?: number;
+  /** Days allowed to file appeal */
   appealDeadlineDays?: number;
 }
 
+/**
+ * Filters for agency search
+ * @interface
+ */
 export interface AgencySearchFilters {
+  /** Text search query for name/abbreviation */
   query?: string;
+  /** Filter by jurisdiction level */
   jurisdictionLevel?: JurisdictionLevel;
+  /** Filter by state code */
   state?: string;
 }
 
+/**
+ * Generic paginated result structure
+ * @interface
+ * @template T - Type of data items
+ */
 export interface PaginatedResult<T> {
+  /** Array of result items */
   data: T[];
+  /** Pagination metadata */
   pagination: PaginationInfo;
 }
 
+/**
+ * Agency Service
+ *
+ * @class AgencyService
+ * @description Manages government agencies that can receive FOIA requests.
+ *              Provides search, CRUD operations, and statistics aggregation.
+ *
+ * @example
+ * ```typescript
+ * const agencyService = new AgencyService();
+ *
+ * // Search for FBI
+ * const { data, pagination } = await agencyService.searchAgencies({
+ *   query: 'FBI',
+ *   jurisdictionLevel: 'federal'
+ * });
+ * ```
+ */
 export class AgencyService {
   /**
    * Create a new agency
+   *
+   * @param {CreateAgencyDTO} data - Agency data
+   * @returns {Promise<Agency>} Created agency
    */
   async createAgency(data: CreateAgencyDTO): Promise<Agency> {
     const id = nanoid();

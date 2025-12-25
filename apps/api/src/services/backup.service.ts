@@ -1,12 +1,17 @@
 /**
- * Backup & Disaster Recovery Service
- *
- * Provides automated database backup, integrity verification, and recovery procedures.
- *
- * Addresses: GAP-005 (Backup & Disaster Recovery)
- * Controls: CP-9, CP-10, A.8.13, A.8.14, 3.8.9
+ * @file Backup & Disaster Recovery Service
+ * @module services/backup
+ * @author FOIA Stream Team
+ * @description Provides automated database backup, integrity verification, and recovery procedures.
+ *              Supports full, incremental, and snapshot backups with configurable retention policies.
+ * @compliance NIST 800-53 CP-9 (Information System Backup) - GAP-005
+ * @compliance NIST 800-53 CP-10 (Information System Recovery and Reconstitution)
+ * @compliance ISO 27001 A.8.13 (Information Backup)
+ * @compliance ISO 27001 A.8.14 (Redundancy of Information Processing Facilities)
+ * @compliance CMMC 3.8.9 (Protect Backups)
  */
 
+import { Schema as S } from 'effect';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -20,7 +25,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { Schema as S } from 'effect';
 import { env } from '../config/env';
 import { BadRequestError, DatabaseError, NotFoundError } from '../utils/errors';
 

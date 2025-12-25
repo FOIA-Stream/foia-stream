@@ -1,3 +1,14 @@
+/**
+ * @file Authentication Routes
+ * @module routes/auth
+ * @author FOIA Stream Team
+ * @description Handles user authentication, registration, session management,
+ *              and profile operations. All sensitive operations are protected
+ *              by JWT authentication middleware.
+ * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+ * @compliance NIST 800-53 AC-2 (Account Management)
+ */
+
 // ============================================
 // FOIA Stream - Authentication Routes
 // ============================================
@@ -17,6 +28,13 @@ const auth = new Hono();
 
 /**
  * POST /auth/register - Create new user account
+ *
+ * @route POST /auth/register
+ * @group Authentication - User registration and login
+ * @param {CreateUserSchema} request.body.required - User registration data
+ * @returns {Object} 201 - Created user object
+ * @returns {Object} 400 - Registration error
+ * @compliance NIST 800-53 AC-2 (Account Management)
  */
 auth.post('/register', jsonValidator(CreateUserSchema), async (c) => {
   try {
@@ -39,6 +57,14 @@ auth.post('/register', jsonValidator(CreateUserSchema), async (c) => {
 
 /**
  * POST /auth/login - Authenticate user
+ *
+ * @route POST /auth/login
+ * @group Authentication - User registration and login
+ * @param {LoginSchema} request.body.required - Login credentials
+ * @returns {Object} 200 - JWT token and user data
+ * @returns {Object} 401 - Authentication failure
+ * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+ * @compliance NIST 800-53 AU-2 (Audit Events) - Login events are logged
  */
 auth.post('/login', jsonValidator(LoginSchema), async (c) => {
   try {
@@ -58,6 +84,13 @@ auth.post('/login', jsonValidator(LoginSchema), async (c) => {
 
 /**
  * POST /auth/logout - Logout user
+ *
+ * @route POST /auth/logout
+ * @group Authentication - Session management
+ * @security JWT
+ * @returns {Object} 200 - Logout success message
+ * @returns {Object} 400 - Logout error
+ * @compliance NIST 800-53 AC-12 (Session Termination)
  */
 auth.post('/logout', authMiddleware, async (c) => {
   try {
@@ -80,6 +113,12 @@ auth.post('/logout', authMiddleware, async (c) => {
 
 /**
  * GET /auth/me - Get current user profile
+ *
+ * @route GET /auth/me
+ * @group Authentication - Profile management
+ * @security JWT
+ * @returns {Object} 200 - Current user profile data
+ * @returns {Object} 404 - User not found
  */
 auth.get('/me', authMiddleware, async (c) => {
   try {
@@ -102,6 +141,14 @@ auth.get('/me', authMiddleware, async (c) => {
 
 /**
  * PATCH /auth/me - Update current user profile
+ *
+ * @route PATCH /auth/me
+ * @group Authentication - Profile management
+ * @security JWT
+ * @param {UpdateUserSchema} request.body.required - Profile update data
+ * @returns {Object} 200 - Updated user profile
+ * @returns {Object} 400 - Update error
+ * @compliance NIST 800-53 AC-2 (Account Management)
  */
 auth.patch('/me', authMiddleware, jsonValidator(UpdateUserSchema), async (c) => {
   try {
@@ -122,6 +169,14 @@ auth.patch('/me', authMiddleware, jsonValidator(UpdateUserSchema), async (c) => 
 
 /**
  * POST /auth/change-password - Change password
+ *
+ * @route POST /auth/change-password
+ * @group Authentication - Security
+ * @security JWT
+ * @param {ChangePasswordSchema} request.body.required - Current and new password
+ * @returns {Object} 200 - Password change success
+ * @returns {Object} 400 - Password change error
+ * @compliance NIST 800-53 IA-5 (Authenticator Management)
  */
 auth.post('/change-password', authMiddleware, jsonValidator(ChangePasswordSchema), async (c) => {
   try {

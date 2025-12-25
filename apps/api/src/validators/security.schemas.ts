@@ -1,3 +1,13 @@
+/**
+ * @file Security Validation Schemas (Effect Schema)
+ * @module validators/security-schemas
+ * @author FOIA Stream Team
+ * @description Effect Schema definitions for security-related validation.
+ *              Includes encryption, audit logging, MFA, and session schemas.
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
+ * @compliance NIST 800-53 AU-2 (Audit Events)
+ */
+
 // ============================================
 // FOIA Stream - Security Validation Schemas (Effect Schema)
 // ============================================

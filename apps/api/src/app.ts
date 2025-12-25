@@ -1,20 +1,45 @@
+/**
+ * @file Main Application Entry Point
+ * @module app
+ * @author FOIA Stream Team
+ * @description Configures and exports the Hono application with middleware,
+ *              routes, and error handling for the FOIA Stream API.
+ *              Supports both legacy routes and new OpenAPI routes.
+ * @compliance NIST 800-53 SC-8 (Transmission Confidentiality), SI-11 (Error Handling)
+ */
+
 // ============================================
 // FOIA Stream - Main Application Entry
 // ============================================
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
-import { env } from './config/env';
-import { agencyRoutes, authRoutes, requestRoutes, templateRoutes } from './routes';
 
-// Create Hono app
-const app = new Hono();
+import { env } from './config/env';
+import configureOpenAPI from './lib/configure-open-api';
+import createApp from './lib/create-app';
+import { agencyRoutes, authRoutes, requestRoutes, templateRoutes } from './routes';
+import agenciesOpenAPIRoute from './routes/agencies';
+import authOpenAPIRoute from './routes/auth';
+import indexRoute from './routes/index.route';
+import requestsOpenAPIRoute from './routes/requests';
+import templatesOpenAPIRoute from './routes/templates';
+
+/**
+ * Main Hono application instance with OpenAPI support
+ *
+ * @constant
+ * @type {OpenAPIHono<AppBindings>}
+ * @description The root application instance that handles all HTTP requests
+ *              with OpenAPI documentation capabilities. Uses createApp() factory
+ *              which includes pino logger, request ID, and error handling.
+ */
+const app = createApp();
 
 // ============================================
-// Global Middleware
+// Additional Global Middleware
 // ============================================
 
 // Security headers
@@ -33,18 +58,21 @@ app.use(
   }),
 );
 
-// Request logging
-app.use('*', logger());
-
 // Pretty JSON responses in development
 if (env.NODE_ENV === 'development') {
   app.use('*', prettyJSON());
 }
 
 // ============================================
-// Health Check
+// Health Check (inline for OpenAPI spec)
 // ============================================
 
+/**
+ * Root endpoint - API information
+ *
+ * @route GET /
+ * @returns {Object} API metadata including name, version, description, status, and timestamp
+ */
 app.get('/', (c) => {
   return c.json({
     name: 'FOIA Stream API',
@@ -55,6 +83,12 @@ app.get('/', (c) => {
   });
 });
 
+/**
+ * Health check endpoint for monitoring and load balancers
+ *
+ * @route GET /health
+ * @returns {Object} Health status with timestamp
+ */
 app.get('/health', (c) => {
   return c.json({
     status: 'healthy',
@@ -66,7 +100,18 @@ app.get('/health', (c) => {
 // API Routes
 // ============================================
 
-// Mount routes under /api/v1
+// Configure OpenAPI documentation FIRST (before any protected routes)
+// This ensures /doc and /reference are accessible without authentication
+configureOpenAPI(app);
+
+/**
+ * API v1 router instance (legacy routes)
+ *
+ * @constant
+ * @type {Hono}
+ * @description Sub-router for all v1 API endpoints (legacy pattern)
+ * @deprecated Use OpenAPI routes instead
+ */
 const api = new Hono();
 
 api.route('/auth', authRoutes);
@@ -77,34 +122,18 @@ api.route('/templates', templateRoutes);
 app.route('/api/v1', api);
 
 // ============================================
-// Error Handling
+// OpenAPI Routes (New Pattern)
 // ============================================
 
-// 404 Handler
-app.notFound((c) => {
-  return c.json(
-    {
-      success: false,
-      error: 'Not Found',
-      message: `The requested resource '${c.req.path}' was not found`,
-    },
-    404,
-  );
-});
-
-// Global error handler
-app.onError((err, c) => {
-  console.error('Unhandled error:', err);
-
-  return c.json(
-    {
-      success: false,
-      error: 'Internal Server Error',
-      message: env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
-    },
-    500,
-  );
-});
+/**
+ * Mount OpenAPI routes with documentation
+ * These routes use @hono/zod-openapi for type-safe validation
+ */
+app.route('/', indexRoute);
+app.route('/', authOpenAPIRoute);
+app.route('/', agenciesOpenAPIRoute);
+app.route('/', requestsOpenAPIRoute);
+app.route('/', templatesOpenAPIRoute);
 
 // ============================================
 // Export App
