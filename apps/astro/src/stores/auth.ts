@@ -1,80 +1,44 @@
 /**
  * Copyright (c) 2025 Foia Stream
  *
- * @file Authentication state management using Zustand
+ * @file Authentication state management using Zustand with Effect Schema validation
  * @module stores/auth
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
 
-import { create } from 'zustand';
 import { api, type User } from '@/lib/api';
+import { Schema as S } from 'effect';
+import { create } from 'zustand';
 
 // ============================================
-// Types
+// Effect Schema Definitions
 // ============================================
 
-<<<<<<< HEAD
 /**
- * Reactive store for the JWT authentication token
- * @constant
- * @type {WritableAtom<string | null>}
+ * Schema for MFA pending state during two-step login
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
-export const $token = atom<string | null>(null);
-
-/**
- * Reactive store indicating if auth state is being loaded
- * @constant
- * @type {WritableAtom<boolean>}
- */
-export const $isLoading = atom(true);
+const MFAPendingStateSchema = S.Struct({
+  mfaToken: S.String.pipe(S.nonEmptyString()),
+  user: S.Any, // User type is validated by api.ts
+});
+type MFAPendingState = S.Schema.Type<typeof MFAPendingStateSchema>;
 
 /**
- * Computed store that returns true if a user is authenticated
- * @constant
- * @type {ReadableAtom<boolean>}
+ * Schema for consent data during registration
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
-export const $isAuthenticated = computed($user, (user) => user !== null);
+const ConsentDataSchema = S.Struct({
+  termsAccepted: S.Boolean,
+  privacyAccepted: S.Boolean,
+  dataProcessingAccepted: S.Boolean,
+  consentTimestamp: S.String.pipe(S.nonEmptyString()),
+});
+type ConsentData = S.Schema.Type<typeof ConsentDataSchema>;
 
-/**
- * Initializes authentication state from localStorage
- * Should be called on app startup in browser environment
- * @returns {void}
- */
-export function initAuth() {
-  if (typeof window === 'undefined') return;
-
-  const storedToken = localStorage.getItem('auth_token');
-  if (storedToken) {
-    $token.set(storedToken);
-    api.getProfile().then((response) => {
-      if (response.success && response.data) {
-        $user.set(response.data);
-      } else {
-        localStorage.removeItem('auth_token');
-        $token.set(null);
-      }
-      $isLoading.set(false);
-    });
-  } else {
-    $isLoading.set(false);
-  }
-}
-
-/**
- * MFA pending state for two-step login
- */
-=======
->>>>>>> 10c15c3 (feat(api): 🔒 Implement secure PDF upload and malware scanning)
-interface MFAPendingState {
-  mfaToken: string;
-  user: User;
-}
-
-interface ConsentData {
-  termsAccepted: boolean;
-  privacyAccepted: boolean;
-  dataProcessingAccepted: boolean;
-  consentTimestamp: string;
-}
+// ============================================
+// Auth State Interface
+// ============================================
 
 interface AuthState {
   // State
@@ -166,7 +130,7 @@ export function initAuth() {
   if (typeof window === 'undefined') return;
 
   const { setToken, setUser, setLoading } = useAuthStore.getState();
-  const storedToken = localStorage.getItem('token');
+  const storedToken = localStorage.getItem('auth_token');
 
   if (storedToken) {
     setToken(storedToken);
@@ -174,7 +138,7 @@ export function initAuth() {
       if (response.success && response.data) {
         setUser(response.data);
       } else {
-        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
         setToken(null);
       }
       setLoading(false);
@@ -199,15 +163,9 @@ export async function login(email: string, password: string) {
       return { success: false, requiresMFA: true };
     }
 
-<<<<<<< HEAD
     localStorage.setItem('auth_token', token);
-    $token.set(token);
-    $user.set(user);
-=======
-    localStorage.setItem('token', token);
     setToken(token);
     setUser(user);
->>>>>>> 10c15c3 (feat(api): 🔒 Implement secure PDF upload and malware scanning)
     return { success: true };
   }
 
@@ -227,17 +185,10 @@ export async function verifyMFALogin(code: string) {
   const response = await api.verifyMFALogin(mfaPending.mfaToken, code);
 
   if (response.success && response.data) {
-<<<<<<< HEAD
     localStorage.setItem('auth_token', response.data.token);
-    $token.set(response.data.token);
-    $user.set(pending.user);
-    $mfaPending.set(null);
-=======
-    localStorage.setItem('token', response.data.token);
     setToken(response.data.token);
     setUser(mfaPending.user);
     setMfaPending(null);
->>>>>>> 10c15c3 (feat(api): 🔒 Implement secure PDF upload and malware scanning)
     return { success: true };
   }
 
@@ -267,15 +218,9 @@ export async function register(data: {
 
   if (response.success && response.data) {
     const { token, user } = response.data;
-<<<<<<< HEAD
     localStorage.setItem('auth_token', token);
-    $token.set(token);
-    $user.set(user);
-=======
-    localStorage.setItem('token', token);
     setToken(token);
     setUser(user);
->>>>>>> 10c15c3 (feat(api): 🔒 Implement secure PDF upload and malware scanning)
     return { success: true };
   }
 
@@ -288,15 +233,9 @@ export async function register(data: {
 export async function logout() {
   const { setToken, setUser } = useAuthStore.getState();
   await api.logout();
-<<<<<<< HEAD
   localStorage.removeItem('auth_token');
-  $token.set(null);
-  $user.set(null);
-=======
-  localStorage.removeItem('token');
   setToken(null);
   setUser(null);
->>>>>>> 10c15c3 (feat(api): 🔒 Implement secure PDF upload and malware scanning)
 }
 
 /**
