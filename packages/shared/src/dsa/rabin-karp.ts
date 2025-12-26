@@ -29,6 +29,13 @@
  * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
 
+import {
+  RabinKarpMultiSearchSchema,
+  RabinKarpOptionsSchema,
+  RabinKarpSearchSchema,
+  validateSafe,
+} from './schemas';
+
 // ============================================
 // Types & Interfaces
 // ============================================
@@ -128,11 +135,20 @@ export class RabinKarp {
   /**
    * Creates a new Rabin-Karp matcher
    * @param options - Configuration options
+   * @throws Error if options validation fails
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    */
   constructor(options: RabinKarpOptions = {}) {
-    this.caseInsensitive = options.caseInsensitive ?? false;
-    this.maxMatches = options.maxMatches ?? Number.MAX_SAFE_INTEGER;
-    this.includeLineInfo = options.includeLineInfo ?? true;
+    // Validate options using Effect Schema
+    const validation = validateSafe(RabinKarpOptionsSchema, options);
+    if (!validation.success) {
+      throw new Error(`Invalid RabinKarp options: ${validation.error}`);
+    }
+    const validatedOptions = validation.data;
+
+    this.caseInsensitive = validatedOptions.caseInsensitive ?? false;
+    this.maxMatches = validatedOptions.maxMatches ?? Number.MAX_SAFE_INTEGER;
+    this.includeLineInfo = validatedOptions.includeLineInfo ?? true;
   }
 
   /**
@@ -141,6 +157,7 @@ export class RabinKarp {
    * @param text - The text to search in
    * @param pattern - The pattern to search for
    * @returns Array of matches found
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    *
    * @example
    * ```typescript
@@ -151,7 +168,9 @@ export class RabinKarp {
    * ```
    */
   search(text: string, pattern: string): PatternMatch[] {
-    if (!text || !pattern || pattern.length > text.length) {
+    // Validate search input
+    const validation = validateSafe(RabinKarpSearchSchema, { text, pattern });
+    if (!validation.success || pattern.length > text.length) {
       return [];
     }
 
@@ -220,6 +239,7 @@ export class RabinKarp {
    * @param text - The text to search in
    * @param patterns - Array of patterns to search for
    * @returns Map of pattern to matches
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    *
    * @example
    * ```typescript
@@ -233,12 +253,14 @@ export class RabinKarp {
   searchMultiple(text: string, patterns: string[]): Map<string, PatternMatch[]> {
     const results = new Map<string, PatternMatch[]>();
 
-    if (!text || patterns.length === 0) {
+    // Validate multi-search input
+    const validation = validateSafe(RabinKarpMultiSearchSchema, { text, patterns });
+    if (!validation.success) {
       return results;
     }
 
-    // Filter out empty patterns and patterns longer than text
-    const validPatterns = patterns.filter((p) => p && p.length <= text.length);
+    // Filter out patterns longer than text
+    const validPatterns = patterns.filter((p) => p.length <= text.length);
 
     // Group patterns by length for optimization
     const patternsByLength = new Map<number, string[]>();

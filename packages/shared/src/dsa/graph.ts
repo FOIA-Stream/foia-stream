@@ -29,6 +29,8 @@
  * @compliance NIST 800-53 AC-4 (Information Flow Enforcement)
  */
 
+import { GraphEdgeSchema, GraphOptionsSchema, VertexIdSchema, validateSafe } from './schemas';
+
 // ============================================
 // Types & Interfaces
 // ============================================
@@ -135,9 +137,21 @@ export class Graph<T> {
    * Creates a new Graph
    * @param options - Configuration options
    */
+  /**
+   * Creates a new Graph
+   * @param options - Configuration options
+   * @throws Error if options validation fails
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
+   */
   constructor(options: GraphOptions = {}) {
+    // Validate options using Effect Schema
+    const validation = validateSafe(GraphOptionsSchema, options);
+    if (!validation.success) {
+      throw new Error(`Invalid Graph options: ${validation.error}`);
+    }
+
     this.adjacencyList = new Map();
-    this.directed = options.directed ?? true;
+    this.directed = validation.data.directed ?? true;
   }
 
   /**
@@ -797,26 +811,65 @@ export function createRequestRoutingGraph(): Graph<string> {
 }
 
 /**
+ * Validates and adds an edge using Effect Schema (for string graphs)
+ *
+ * @param graph - Graph to add edge to
+ * @param source - Source vertex ID
+ * @param target - Target vertex ID
+ * @param weight - Edge weight
+ * @returns True if edge was added successfully
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
+ */
+export function addValidatedEdge(
+  graph: Graph<string>,
+  source: string,
+  target: string,
+  weight = 1,
+): boolean {
+  const validation = validateSafe(GraphEdgeSchema, { source, target, weight });
+  if (!validation.success) {
+    return false;
+  }
+  graph.addEdge(validation.data.source, validation.data.target, validation.data.weight ?? 1);
+  return true;
+}
+
+/**
+ * Validates a vertex ID using Effect Schema
+ *
+ * @param id - Vertex ID to validate
+ * @returns True if valid
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
+ */
+export function isValidVertexId(id: unknown): id is string {
+  const validation = validateSafe(VertexIdSchema, id);
+  return validation.success;
+}
+
+/**
  * Builds agency hierarchy from flat list of agencies
  *
  * @param agencies - Array of agency nodes with parent references
  * @returns Populated hierarchy graph
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
 export function buildAgencyHierarchy(agencies: AgencyNode[]): Graph<string> {
   const graph = createAgencyHierarchy();
 
-  // Add all vertices first
+  // Add all vertices first (validate IDs)
   for (const agency of agencies) {
-    graph.addVertex(agency.id, {
-      name: agency.name,
-      jurisdiction: agency.jurisdiction,
-    });
+    if (isValidVertexId(agency.id)) {
+      graph.addVertex(agency.id, {
+        name: agency.name,
+        jurisdiction: agency.jurisdiction,
+      });
+    }
   }
 
-  // Add edges based on parent relationships
+  // Add edges based on parent relationships (with validation)
   for (const agency of agencies) {
     if (agency.parentId && graph.hasVertex(agency.parentId)) {
-      graph.addEdge(agency.parentId, agency.id, 1, { relationship: 'parent-child' });
+      addValidatedEdge(graph, agency.parentId, agency.id, 1);
     }
   }
 

@@ -47,6 +47,12 @@
       "inputs": ["$TURBO_DEFAULT$", "vitest.config.ts"],
       "outputs": ["coverage/**"]
     },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "cypress.config.ts", "cypress/**"],
+      "outputs": [],
+      "cache": false
+    },
     "db:generate": {
       "inputs": ["src/db/schema.ts", "drizzle.config.ts"],
       "outputs": ["drizzle/**"],

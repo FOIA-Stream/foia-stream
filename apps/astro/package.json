@@ -9,6 +9,12 @@
     "preview": "astro preview",
     "start": "node dist/server/entry.mjs",
     "typecheck": "astro check && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "test:e2e": "cypress run",
     "clean": "rm -rf dist node_modules .astro"
   },
   "dependencies": {
@@ -33,9 +39,17 @@
   "devDependencies": {
     "@foia-stream/typescript-config": "workspace:*",
     "@tailwindcss/vite": "^4.1.7",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.2",
+    "@vitest/coverage-v8": "^4.0.16",
+    "cypress": "15.8.1",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4.1.7",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.0.16"
   }
 }

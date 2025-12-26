@@ -29,6 +29,14 @@
  * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
 
+import {
+  TrieInsertSchema,
+  type TrieOptions,
+  TrieOptionsSchema,
+  TrieSearchSchema,
+  validateSafe,
+} from './schemas';
+
 // ============================================
 // Types & Interfaces
 // ============================================
@@ -61,15 +69,8 @@ export interface TrieSearchResult<T> {
   score: number;
 }
 
-/**
- * Options for Trie configuration
- */
-export interface TrieOptions {
-  /** Whether to make searches case-insensitive (default: true) */
-  caseInsensitive?: boolean;
-  /** Maximum results to return from search (default: 10) */
-  maxResults?: number;
-}
+// Re-export TrieOptions from schemas for consumers
+export type { TrieOptions };
 
 // ============================================
 // Trie Implementation
@@ -108,11 +109,20 @@ export class Trie<T> {
   /**
    * Creates a new Trie instance
    * @param options - Configuration options
+   * @throws ParseError if options validation fails
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    */
   constructor(options: TrieOptions = {}) {
+    // Validate options using Effect Schema
+    const validation = validateSafe(TrieOptionsSchema, options);
+    if (!validation.success) {
+      throw new Error(`Invalid Trie options: ${validation.error}`);
+    }
+    const validatedOptions = validation.data;
+
     this.root = this.createNode();
-    this.caseInsensitive = options.caseInsensitive ?? true;
-    this.maxResults = options.maxResults ?? 10;
+    this.caseInsensitive = validatedOptions.caseInsensitive ?? true;
+    this.maxResults = validatedOptions.maxResults ?? 10;
     this.size = 0;
   }
 
@@ -146,6 +156,7 @@ export class Trie<T> {
    * @param word - The word to insert
    * @param data - Data to associate with the word
    * @returns This Trie instance for chaining
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    *
    * @example
    * ```typescript
@@ -153,11 +164,14 @@ export class Trie<T> {
    * ```
    */
   insert(word: string, data: T): this {
-    if (!word || word.trim() === '') {
+    // Validate input using Effect Schema
+    const validation = validateSafe(TrieInsertSchema, { word: word?.trim() || '' });
+    if (!validation.success) {
+      // Silently skip invalid input for backward compatibility
       return this;
     }
 
-    const normalizedWord = this.normalizeKey(word.trim());
+    const normalizedWord = this.normalizeKey(validation.data.word);
     let current = this.root;
 
     for (const char of normalizedWord) {
@@ -245,6 +259,7 @@ export class Trie<T> {
    * @param prefix - The prefix to search for
    * @param limit - Maximum number of results (defaults to maxResults option)
    * @returns Array of search results sorted by relevance
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    *
    * @example
    * ```typescript
@@ -253,8 +268,17 @@ export class Trie<T> {
    * ```
    */
   searchByPrefix(prefix: string, limit?: number): TrieSearchResult<T>[] {
-    const maxCount = limit ?? this.maxResults;
-    const normalizedPrefix = this.normalizeKey(prefix.trim());
+    // Validate search input using Effect Schema
+    const validation = validateSafe(TrieSearchSchema, {
+      prefix: prefix?.trim() || '',
+      limit,
+    });
+    if (!validation.success) {
+      return [];
+    }
+
+    const maxCount = validation.data.limit ?? this.maxResults;
+    const normalizedPrefix = this.normalizeKey(validation.data.prefix);
 
     if (!normalizedPrefix) {
       return [];

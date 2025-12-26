@@ -29,6 +29,8 @@
  * @compliance NIST 800-53 AU-6 (Audit Review, Analysis, and Reporting)
  */
 
+import { FOIARequestPrioritySchema, PriorityQueueOptionsSchema, validateSafe } from './schemas';
+
 // ============================================
 // Types & Interfaces
 // ============================================
@@ -103,9 +105,20 @@ export class PriorityQueue<T> {
   /**
    * Creates a new Priority Queue
    * @param options - Configuration options
+   * @throws Error if options validation fails
+   * @compliance NIST 800-53 SI-10 (Information Input Validation)
    */
   constructor(options: PriorityQueueOptions<T> = {}) {
-    const { compareFn, initialCapacity = 16 } = options;
+    // Validate options using Effect Schema (only numeric options)
+    const validation = validateSafe(PriorityQueueOptionsSchema, {
+      initialCapacity: options.initialCapacity,
+    });
+    if (!validation.success) {
+      throw new Error(`Invalid PriorityQueue options: ${validation.error}`);
+    }
+
+    const { compareFn } = options;
+    const initialCapacity = validation.data.initialCapacity ?? 16;
 
     this.heap = new Array(initialCapacity);
     this.heap.length = 0;
@@ -475,6 +488,34 @@ export interface PriorityRequestItem {
   status: string;
   /** Additional metadata */
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Validates and creates a PriorityRequestItem from raw input
+ *
+ * @param input - Raw input to validate
+ * @returns Validated PriorityRequestItem or null if invalid
+ * @compliance NIST 800-53 SI-10 (Information Input Validation)
+ */
+export function validatePriorityItem(input: unknown): PriorityRequestItem | null {
+  const validation = validateSafe(FOIARequestPrioritySchema, input);
+  if (!validation.success) {
+    return null;
+  }
+
+  const data = validation.data;
+  const deadline = typeof data.dueDate === 'string' ? new Date(data.dueDate) : data.dueDate;
+
+  return {
+    id: data.id,
+    deadline,
+    priority: data.priority ?? 3,
+    status: 'pending',
+    metadata: {
+      title: data.title,
+      agencyId: data.agencyId,
+    },
+  };
 }
 
 /**

@@ -54,6 +54,7 @@ export {
   createMinHeap,
   createPriorityLevelQueue,
   PriorityQueue,
+  validatePriorityItem,
   type CompareFn,
   type PriorityQueueOptions,
   type PriorityQueueStats,
@@ -79,10 +80,12 @@ export {
 // ============================================
 
 export {
+  addValidatedEdge,
   buildAgencyHierarchy,
   createAgencyHierarchy,
   createRequestRoutingGraph,
   Graph,
+  isValidVertexId,
   type AgencyNode,
   type Edge,
   type GraphOptions,
@@ -90,3 +93,42 @@ export {
   type TraversalResult,
   type Vertex,
 } from './graph';
+
+// ============================================
+// Effect Schema Validation Schemas
+// ============================================
+
+export {
+  // Agency-specific schemas
+  AgencyAutocompleteDataSchema,
+  AgencyHierarchyNodeSchema,
+  createValidator,
+  FOIARequestPrioritySchema,
+  GraphEdgeSchema,
+  // Graph schemas
+  GraphOptionsSchema,
+  // Priority Queue schemas
+  PriorityQueueOptionsSchema,
+  RabinKarpMultiSearchSchema,
+  // Rabin-Karp schemas
+  RabinKarpOptionsSchema,
+  RabinKarpSearchSchema,
+  TrieInsertSchema,
+  // Trie schemas
+  TrieOptionsSchema,
+  TrieSearchSchema,
+  // Validation helpers
+  validate,
+  validateSafe,
+  VertexIdSchema,
+  // Types
+  type AgencyAutocompleteData,
+  type AgencyHierarchyNode,
+  type FOIARequestPriority,
+  type GraphEdge,
+  type RabinKarpMultiSearch,
+  type RabinKarpSearch,
+  type TrieInsert,
+  type TrieSearch,
+  type VertexId,
+} from './schemas';
