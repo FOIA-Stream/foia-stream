@@ -711,10 +711,10 @@ function PreferencesTab() {
 function ApiKeysTab() {
   const [apiKey, setApiKey] = useState<{
     id: string;
-    keyPreview: string;
+    keyPreview?: string;
     name: string;
     createdAt: string;
-    lastUsedAt: string | null;
+    lastUsedAt?: string | null;
   } | null>(null);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -975,7 +975,7 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
     if (response.success) {
       setSuccess(true);
       setTimeout(() => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
         window.location.href = '/login';
       }, 2000);
     } else {
@@ -1139,8 +1139,7 @@ function TwoFactorModal({ enabled, onClose }: { enabled: boolean; onClose: () =>
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState('');
   const [setupData, setSetupData] = useState<{
-    qrCode: string;
-    qrCodeUrl?: string;
+    qrCodeUrl: string;
     secret: string;
     backupCodes: readonly string[];
   } | null>(null);
@@ -1293,9 +1292,9 @@ function TwoFactorModal({ enabled, onClose }: { enabled: boolean; onClose: () =>
             <div className="flex justify-center rounded-lg bg-white p-4">
               <img
                 src={
-                  setupData.qrCode.startsWith('data:')
-                    ? setupData.qrCode
-                    : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.qrCode)}`
+                  setupData.qrCodeUrl.startsWith('data:')
+                    ? setupData.qrCodeUrl
+                    : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.qrCodeUrl)}`
                 }
                 alt="2FA QR Code"
                 className="h-48 w-48"
@@ -1824,7 +1823,7 @@ function DeleteConfirmationModal({
 
     if (response.success) {
       if (isAccount) {
-        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
         window.location.href = '/';
       } else {
         onClose();

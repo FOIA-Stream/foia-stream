@@ -533,9 +533,7 @@ export default function AgenciesPage() {
 
                   <div className="mt-4 flex items-center justify-between text-xs text-surface-500">
                     <span>
-                      {agency.processingTimeAvg
-                        ? `${agency.processingTimeAvg} day avg`
-                        : '20 day response'}
+                      {agency.responseDeadlineDays} day response
                     </span>
                     {agency.foiaPortalUrl && (
                       <span className="flex items-center gap-1 text-accent-400">
@@ -627,27 +625,19 @@ export default function AgenciesPage() {
                     </span>
                   </div>
                 )}
-
-                {selectedAgency.foiaPhone && (
-                  <a
-                    href={`tel:${selectedAgency.foiaPhone}`}
-                    className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-800/50 p-3 text-sm text-surface-300 transition-colors hover:bg-surface-800"
-                  >
-                    <Phone className="h-5 w-5 text-surface-500" />
-                    <span>{selectedAgency.foiaPhone}</span>
-                  </a>
-                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-surface-800">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-surface-100">
-                    {selectedAgency.processingTimeAvg || 20}
+                    {selectedAgency.responseDeadlineDays}
                   </p>
-                  <p className="text-xs text-surface-500">Day Avg Response</p>
+                  <p className="text-xs text-surface-500">Day Response Deadline</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-surface-100">30</p>
+                  <p className="text-2xl font-bold text-surface-100">
+                    {selectedAgency.appealDeadlineDays}
+                  </p>
                   <p className="text-xs text-surface-500">Day Appeal Deadline</p>
                 </div>
               </div>

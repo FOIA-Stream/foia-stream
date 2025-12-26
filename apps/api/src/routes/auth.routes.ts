@@ -35,6 +35,7 @@
 // FOIA Stream - Authentication Routes
 // ============================================
 
+import { HttpError } from '@foia-stream/shared';
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { jsonValidator } from '../middleware/validator.middleware';
@@ -61,19 +62,22 @@ const auth = new Hono();
 auth.post('/register', jsonValidator(CreateUserSchema), async (c) => {
   try {
     const data = c.req.valid('json');
-    const user = await authService.createUser(data);
+    await authService.createUser(data);
+
+    const loginResult = await authService.login(data.email, data.password);
 
     return c.json(
       {
         success: true,
-        data: user,
+        data: loginResult,
         message: 'Account created successfully',
       },
       201,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';
-    return c.json({ success: false, error: message }, 400);
+    const status = error instanceof HttpError ? (error.statusCode as any) : 400;
+    return c.json({ success: false, error: message }, status);
   }
 });
 
@@ -100,7 +104,8 @@ auth.post('/login', jsonValidator(LoginSchema), async (c) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Login failed';
-    return c.json({ success: false, error: message }, 401);
+    const status = error instanceof HttpError ? (error.statusCode as any) : 401;
+    return c.json({ success: false, error: message }, status);
   }
 });
 
@@ -129,7 +134,8 @@ auth.post('/logout', authMiddleware, async (c) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Logout failed';
-    return c.json({ success: false, error: message }, 400);
+    const status = error instanceof HttpError ? (error.statusCode as any) : 400;
+    return c.json({ success: false, error: message }, status);
   }
 });
 
@@ -157,7 +163,8 @@ auth.get('/me', authMiddleware, async (c) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get profile';
-    return c.json({ success: false, error: message }, 400);
+    const status = error instanceof HttpError ? (error.statusCode as any) : 400;
+    return c.json({ success: false, error: message }, status);
   }
 });
 
@@ -185,7 +192,8 @@ auth.patch('/me', authMiddleware, jsonValidator(UpdateUserSchema), async (c) => 
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Update failed';
-    return c.json({ success: false, error: message }, 400);
+    const status = error instanceof HttpError ? (error.statusCode as any) : 400;
+    return c.json({ success: false, error: message }, status);
   }
 });
 
@@ -212,7 +220,8 @@ auth.post('/change-password', authMiddleware, jsonValidator(ChangePasswordSchema
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Password change failed';
-    return c.json({ success: false, error: message }, 400);
+    const status = error instanceof HttpError ? (error.statusCode as any) : 400;
+    return c.json({ success: false, error: message }, status);
   }
 });
 

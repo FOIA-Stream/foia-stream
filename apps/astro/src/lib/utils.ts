@@ -99,13 +99,16 @@ export function getStatusColor(status: string): string {
  * @type {ReadonlyArray<{value: string, label: string}>}
  */
 export const CATEGORIES = [
-  { value: 'general', label: 'General Records' },
-  { value: 'contracts', label: 'Contracts & Procurement' },
-  { value: 'personnel', label: 'Personnel Records' },
-  { value: 'financial', label: 'Financial Records' },
-  { value: 'communications', label: 'Communications & Correspondence' },
-  { value: 'policy', label: 'Policies & Procedures' },
-  { value: 'legal', label: 'Legal Documents' },
-  { value: 'environmental', label: 'Environmental Records' },
+  { value: 'body_cam_footage', label: 'Body Camera Footage' },
+  { value: 'incident_report', label: 'Incident Report' },
+  { value: 'arrest_record', label: 'Arrest Record' },
+  { value: 'use_of_force_report', label: 'Use of Force Report' },
+  { value: 'policy_document', label: 'Policy Document' },
+  { value: 'budget_record', label: 'Budget Record' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'complaint_record', label: 'Complaint Record' },
+  { value: 'training_material', label: 'Training Material' },
+  { value: 'personnel_record', label: 'Personnel Record' },
+  { value: 'communication', label: 'Communication' },
   { value: 'other', label: 'Other' },
 ] as const;

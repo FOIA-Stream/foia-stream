@@ -64,14 +64,14 @@ export const $isAuthenticated = computed($user, (user) => user !== null);
 export function initAuth() {
   if (typeof window === 'undefined') return;
 
-  const storedToken = localStorage.getItem('token');
+  const storedToken = localStorage.getItem('auth_token');
   if (storedToken) {
     $token.set(storedToken);
     api.getProfile().then((response) => {
       if (response.success && response.data) {
         $user.set(response.data);
       } else {
-        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
         $token.set(null);
       }
       $isLoading.set(false);
@@ -119,7 +119,7 @@ export async function login(email: string, password: string) {
       return { success: false, requiresMFA: true };
     }
 
-    localStorage.setItem('token', token);
+    localStorage.setItem('auth_token', token);
     $token.set(token);
     $user.set(user);
     return { success: true };
@@ -142,7 +142,7 @@ export async function verifyMFALogin(code: string) {
   const response = await api.verifyMFALogin(pending.mfaToken, code);
 
   if (response.success && response.data) {
-    localStorage.setItem('token', response.data.token);
+    localStorage.setItem('auth_token', response.data.token);
     $token.set(response.data.token);
     $user.set(pending.user);
     $mfaPending.set(null);
@@ -193,7 +193,7 @@ export async function register(data: {
 
   if (response.success && response.data) {
     const { token, user } = response.data;
-    localStorage.setItem('token', token);
+    localStorage.setItem('auth_token', token);
     $token.set(token);
     $user.set(user);
     return { success: true };
@@ -208,7 +208,7 @@ export async function register(data: {
  */
 export async function logout() {
   await api.logout();
-  localStorage.removeItem('token');
+  localStorage.removeItem('auth_token');
   $token.set(null);
   $user.set(null);
 }

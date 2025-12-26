@@ -101,7 +101,7 @@ function RequestsList({ onRefetch }: { onRefetch?: (refetch: () => Promise<void>
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1">
               <h3 className="truncate text-sm font-medium text-surface-100">
-                {request.title || request.subject}
+                {request.title}
               </h3>
               <p className="mt-1 line-clamp-2 text-sm text-surface-400">{request.description}</p>
               <div className="mt-2 flex items-center gap-4 text-xs text-surface-500">
@@ -138,7 +138,7 @@ function DashboardStats() {
     (r) => r.status === 'submitted' || r.status === 'processing' || r.status === 'acknowledged',
   ).length;
   const completedCount = requests.filter(
-    (r) => r.status === 'fulfilled' || r.status === 'closed',
+    (r) => r.status === 'fulfilled' || r.status === 'partially_fulfilled',
   ).length;
   const uniqueAgencies = new Set(requests.map((r) => r.agencyId)).size;
 

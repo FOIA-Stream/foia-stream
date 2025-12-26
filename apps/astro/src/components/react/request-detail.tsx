@@ -234,9 +234,9 @@ export default function RequestDetail({ requestId }: Props) {
                   {request.agency.abbreviation && (
                     <p className="text-sm text-surface-400">({request.agency.abbreviation})</p>
                   )}
-                  {request.agency.foiaEmail && (
+                  {'foiaEmail' in request.agency && (request.agency as { foiaEmail?: string }).foiaEmail && (
                     <p className="font-display text-sm text-accent-400">
-                      {request.agency.foiaEmail}
+                      {(request.agency as { foiaEmail?: string }).foiaEmail}
                     </p>
                   )}
                 </div>
@@ -264,8 +264,8 @@ export default function RequestDetail({ requestId }: Props) {
                 {request.dueDate && (
                   <TimelineItem label="Due Date" value={formatDate(request.dueDate)} highlight />
                 )}
-                {request.closedAt && (
-                  <TimelineItem label="Closed" value={formatDateTime(request.closedAt)} />
+                {request.completedAt && (
+                  <TimelineItem label="Completed" value={formatDateTime(request.completedAt)} />
                 )}
               </div>
             </div>
@@ -279,23 +279,17 @@ export default function RequestDetail({ requestId }: Props) {
                 <p className="capitalize text-surface-100">{request.category}</p>
               </div>
 
-              {request.dateRange && (
+              {(request.dateRangeStart || request.dateRangeEnd) && (
                 <div>
                   <h3 className="mb-1 flex items-center gap-1 text-sm font-medium text-surface-500">
                     <Calendar className="h-4 w-4" />
                     Date Range
                   </h3>
-                  <p className="text-surface-100">{request.dateRange}</p>
-                </div>
-              )}
-
-              {request.specificIndividuals && (
-                <div>
-                  <h3 className="mb-1 flex items-center gap-1 text-sm font-medium text-surface-500">
-                    <User className="h-4 w-4" />
-                    Specific Individuals
-                  </h3>
-                  <p className="text-surface-100">{request.specificIndividuals}</p>
+                  <p className="text-surface-100">
+                    {request.dateRangeStart && formatDate(request.dateRangeStart)}
+                    {request.dateRangeStart && request.dateRangeEnd && ' - '}
+                    {request.dateRangeEnd && formatDate(request.dateRangeEnd)}
+                  </p>
                 </div>
               )}
             </div>
@@ -305,14 +299,9 @@ export default function RequestDetail({ requestId }: Props) {
             <h2 className="mb-4 text-lg font-semibold text-surface-100">Request Options</h2>
             <div className="flex flex-wrap gap-4">
               <OptionBadge
-                active={request.expeditedProcessing ?? false}
-                label={`Expedited Processing: ${request.expeditedProcessing ? 'Yes' : 'No'}`}
+                active={request.isPublic}
+                label={`Public: ${request.isPublic ? 'Yes' : 'No'}`}
                 activeColor="bg-accent-500/20 text-accent-300"
-              />
-              <OptionBadge
-                active={request.feeWaiverRequested ?? false}
-                label={`Fee Waiver: ${request.feeWaiverRequested ? 'Requested' : 'Not Requested'}`}
-                activeColor="bg-emerald-500/20 text-emerald-300"
               />
             </div>
 

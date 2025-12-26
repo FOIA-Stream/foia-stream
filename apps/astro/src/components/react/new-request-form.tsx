@@ -59,11 +59,10 @@ export default function NewRequestForm() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'general',
-    dateRange: '',
-    specificIndividuals: '',
-    expeditedProcessing: false,
-    feeWaiverRequested: false,
+    category: 'other',
+    dateRangeStart: '',
+    dateRangeEnd: '',
+    isPublic: false,
   });
 
   useEffect(() => {
@@ -126,7 +125,7 @@ export default function NewRequestForm() {
     if (template) {
       setFormData((prev) => ({
         ...prev,
-        description: template.content || prev.description,
+        description: template.templateText || prev.description,
       }));
     }
   };
@@ -161,10 +160,9 @@ export default function NewRequestForm() {
       title: formData.title,
       description: formData.description,
       category: formData.category,
-      dateRange: formData.dateRange || undefined,
-      specificIndividuals: formData.specificIndividuals || undefined,
-      expeditedProcessing: formData.expeditedProcessing,
-      feeWaiverRequested: formData.feeWaiverRequested,
+      dateRangeStart: formData.dateRangeStart || undefined,
+      dateRangeEnd: formData.dateRangeEnd || undefined,
+      isPublic: formData.isPublic,
     });
 
     if (response.success) {
@@ -323,36 +321,34 @@ export default function NewRequestForm() {
 
               <div>
                 <label
-                  htmlFor="dateRange"
+                  htmlFor="dateRangeStart"
                   className="mb-2 block text-sm font-medium text-surface-300"
                 >
-                  Date Range <span className="text-surface-500">(optional)</span>
+                  Date Range Start <span className="text-surface-500">(optional)</span>
                 </label>
                 <input
-                  type="text"
-                  id="dateRange"
-                  name="dateRange"
-                  value={formData.dateRange}
+                  type="date"
+                  id="dateRangeStart"
+                  name="dateRangeStart"
+                  value={formData.dateRangeStart}
                   onChange={handleChange}
-                  placeholder="e.g., January 2020 to December 2023"
                   className={inputClass}
                 />
               </div>
 
               <div>
                 <label
-                  htmlFor="specificIndividuals"
+                  htmlFor="dateRangeEnd"
                   className="mb-2 block text-sm font-medium text-surface-300"
                 >
-                  Specific Individuals <span className="text-surface-500">(optional)</span>
+                  Date Range End <span className="text-surface-500">(optional)</span>
                 </label>
                 <input
-                  type="text"
-                  id="specificIndividuals"
-                  name="specificIndividuals"
-                  value={formData.specificIndividuals}
+                  type="date"
+                  id="dateRangeEnd"
+                  name="dateRangeEnd"
+                  value={formData.dateRangeEnd}
                   onChange={handleChange}
-                  placeholder="Names of specific individuals related to the records"
                   className={inputClass}
                 />
               </div>
@@ -366,33 +362,17 @@ export default function NewRequestForm() {
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
-                  name="expeditedProcessing"
-                  checked={formData.expeditedProcessing}
+                  name="isPublic"
+                  checked={formData.isPublic}
                   onChange={handleChange}
                   className="mt-1 h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
                 />
                 <div>
                   <span className="text-sm font-medium text-surface-100">
-                    Request Expedited Processing
+                    Make Request Public
                   </span>
                   <p className="text-sm text-surface-400">
-                    You must demonstrate a compelling need for urgency.
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  name="feeWaiverRequested"
-                  checked={formData.feeWaiverRequested}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
-                />
-                <div>
-                  <span className="text-sm font-medium text-surface-100">Request Fee Waiver</span>
-                  <p className="text-sm text-surface-400">
-                    Typically granted when disclosure is in the public interest.
+                    Allow others to view this request and its responses.
                   </p>
                 </div>
               </label>

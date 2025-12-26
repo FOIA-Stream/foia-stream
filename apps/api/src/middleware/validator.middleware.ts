@@ -114,14 +114,15 @@ export function effectValidator<T, I, Target extends ValidationTarget>(
   schema: S.Schema<T, I>,
 ) {
   return validator(target, async (value, c) => {
-    const result = S.decodeUnknownEither(schema)(value);
-
-    if (result._tag === 'Left') {
-      const validationError = createValidationError(result.left, value);
+    try {
+      const result = S.decodeUnknownSync(schema)(value);
+      return result;
+    } catch (error) {
+      const validationError = createValidationError(error as ParseResult.ParseError, value);
       return c.json(
         {
           success: false,
-          error: validationError._tag,
+          error: validationError.message,
           field: validationError.field,
           message: validationError.message,
           timestamp: validationError.timestamp,
@@ -129,8 +130,6 @@ export function effectValidator<T, I, Target extends ValidationTarget>(
         400,
       );
     }
-
-    return result.right as T;
   });
 }
 

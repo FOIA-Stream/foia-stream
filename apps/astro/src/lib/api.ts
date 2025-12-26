@@ -88,13 +88,15 @@ const UserSchema = S.Struct({
   isVerified: S.Boolean,
   isAnonymous: S.Boolean,
   createdAt: S.String,
+  updatedAt: S.optional(S.String),
 });
 
 /**
  * Auth response schema (login/register)
+ * Note: token can be empty string when requiresMFA is true
  */
 const AuthResponseSchema = S.Struct({
-  token: S.String.pipe(S.minLength(1)),
+  token: S.String,
   user: UserSchema,
   requiresMFA: S.optional(S.Boolean),
   mfaToken: S.optional(S.String),
@@ -124,13 +126,10 @@ const AgencySchema = S.Struct({
   city: S.NullOr(S.String),
   county: S.NullOr(S.String),
   foiaEmail: S.NullOr(S.String),
-  foiaUrl: S.NullOr(S.String),
-  foiaPhone: S.NullOr(S.String),
+  foiaAddress: S.NullOr(S.String),
   foiaPortalUrl: S.NullOr(S.String),
-  description: S.NullOr(S.String),
-  category: S.NullOr(S.String),
-  processingTimeAvg: S.NullOr(S.Number),
-  isActive: S.Boolean,
+  responseDeadlineDays: S.Number,
+  appealDeadlineDays: S.Number,
   createdAt: S.String,
   updatedAt: S.String,
 });
@@ -140,13 +139,13 @@ const AgencySchema = S.Struct({
  */
 const TemplateSchema = S.Struct({
   id: S.String.pipe(S.minLength(1)),
-  userId: S.String.pipe(S.minLength(1)),
   name: S.String.pipe(S.minLength(1)),
-  description: S.NullOr(S.String),
   category: S.String,
-  content: S.String,
-  tags: S.optional(S.Array(S.String)),
-  isPublic: S.Boolean,
+  description: S.String,
+  templateText: S.String,
+  jurisdictionLevel: S.optional(S.NullOr(S.String)),
+  createdBy: S.String,
+  isOfficial: S.Boolean,
   usageCount: S.Number.pipe(S.int(), S.nonNegative()),
   createdAt: S.String,
   updatedAt: S.String,
@@ -161,8 +160,31 @@ const RequestStatusSchema = S.Literal(
   'acknowledged',
   'processing',
   'fulfilled',
+  'partially_fulfilled',
+  'denied',
   'appealed',
-  'closed',
+  'appeal_pending',
+  'appeal_granted',
+  'appeal_denied',
+  'withdrawn',
+);
+
+/**
+ * Record category enum schema
+ */
+const RecordCategorySchema = S.Literal(
+  'body_cam_footage',
+  'incident_report',
+  'arrest_record',
+  'use_of_force_report',
+  'policy_document',
+  'budget_record',
+  'contract',
+  'complaint_record',
+  'training_material',
+  'personnel_record',
+  'communication',
+  'other',
 );
 
 /**
@@ -173,32 +195,30 @@ const FoiaRequestSchema = S.Struct({
   id: S.String.pipe(S.minLength(1)),
   userId: S.String.pipe(S.minLength(1)),
   agencyId: S.String.pipe(S.minLength(1)),
-  templateId: S.NullOr(S.String),
-  agency: S.optional(AgencySchema),
-  title: S.optional(S.String),
-  subject: S.String,
-  description: S.optional(S.String),
-  requestBody: S.String,
-  category: S.optional(S.String),
-  dateRange: S.optional(S.String),
-  specificIndividuals: S.optional(S.String),
-  trackingNumber: S.optional(S.String),
   status: RequestStatusSchema,
-  referenceNumber: S.NullOr(S.String),
-  submittedAt: S.NullOr(S.String),
-  acknowledgedAt: S.NullOr(S.String),
-  dueDate: S.NullOr(S.String),
-  closedAt: S.NullOr(S.String),
-  responseDeadline: S.NullOr(S.String),
-  fees: S.NullOr(S.String),
-  estimatedFee: S.NullOr(S.Number),
-  actualFee: S.NullOr(S.Number),
-  feeWaiverRequested: S.optional(S.Boolean),
-  expeditedProcessing: S.optional(S.Boolean),
-  notes: S.NullOr(S.String),
-  attachments: S.optional(S.Array(S.String)),
+  category: RecordCategorySchema,
+  title: S.String,
+  description: S.String,
+  dateRangeStart: S.optional(S.NullOr(S.String)),
+  dateRangeEnd: S.optional(S.NullOr(S.String)),
+  templateId: S.optional(S.NullOr(S.String)),
+  trackingNumber: S.optional(S.NullOr(S.String)),
+  estimatedFee: S.optional(S.NullOr(S.Number)),
+  actualFee: S.optional(S.NullOr(S.Number)),
+  submittedAt: S.optional(S.NullOr(S.String)),
+  acknowledgedAt: S.optional(S.NullOr(S.String)),
+  dueDate: S.optional(S.NullOr(S.String)),
+  completedAt: S.optional(S.NullOr(S.String)),
+  denialReason: S.optional(S.NullOr(S.String)),
+  isPublic: S.Boolean,
   createdAt: S.String,
   updatedAt: S.String,
+  agency: S.optional(S.Struct({
+    id: S.String,
+    name: S.String,
+    abbreviation: S.optional(S.NullOr(S.String)),
+    jurisdictionLevel: S.String,
+  })),
 });
 
 /**
@@ -208,10 +228,8 @@ const FoiaRequestSchema = S.Struct({
 const SessionSchema = S.Struct({
   id: S.String.pipe(S.minLength(1)),
   deviceName: S.NullOr(S.String),
-  device: S.optional(S.String),
   ipAddress: S.NullOr(S.String),
   lastActiveAt: S.NullOr(S.String),
-  lastActive: S.optional(S.String),
   createdAt: S.String,
   isCurrent: S.Boolean,
 });
@@ -222,7 +240,7 @@ const SessionSchema = S.Struct({
  */
 const MFAStatusSchema = S.Struct({
   enabled: S.Boolean,
-  method: S.optional(S.String),
+  backupCodesRemaining: S.optional(S.Number),
 });
 
 /**
@@ -230,8 +248,7 @@ const MFAStatusSchema = S.Struct({
  */
 const MFASetupResponseSchema = S.Struct({
   secret: S.String.pipe(S.minLength(1)),
-  qrCode: S.String.pipe(S.minLength(1)),
-  qrCodeUrl: S.optional(S.String),
+  qrCodeUrl: S.String.pipe(S.minLength(1)),
   backupCodes: S.Array(S.String),
 });
 
@@ -242,10 +259,10 @@ const MFASetupResponseSchema = S.Struct({
 const ApiKeySchema = S.Struct({
   id: S.String.pipe(S.minLength(1)),
   key: S.optional(S.String),
-  keyPreview: S.String,
+  keyPreview: S.optional(S.String),
   name: S.String,
   createdAt: S.String,
-  lastUsedAt: S.NullOr(S.String),
+  lastUsedAt: S.optional(S.NullOr(S.String)),
 });
 
 /**
@@ -308,18 +325,50 @@ function getAuthHeaders(): Record<string, string> {
  * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
 async function runEffect<T, I = T>(
-  effect: Effect.Effect<T, FetcherError | FetcherValidationError, HttpClient.HttpClient>,
+  effect: Effect.Effect<unknown, FetcherError | FetcherValidationError, HttpClient.HttpClient>,
   schema?: S.Schema<T, I>,
 ): Promise<ApiResponse<T>> {
   const program = pipe(effect, Effect.provide(HttpClientLive));
   const result = await Effect.runPromiseExit(program);
 
   if (result._tag === 'Success') {
-    const data = result.value;
+    const response = result.value as any;
 
+    // Handle standard API envelope
+    if (response && typeof response === 'object' && 'success' in response) {
+      if (!response.success) {
+        return {
+          success: false,
+          error: response.error || response.message || 'Unknown error',
+          message: response.message,
+        };
+      }
+
+      // Some endpoints return data in `data` field, others return message at top level
+      const innerData = response.data !== undefined ? response.data :
+        (response.message !== undefined ? { message: response.message } : undefined);
+
+      // Validate inner data if schema is provided
+      if (schema) {
+        const decoded = S.decodeUnknownEither(schema)(innerData);
+        if (decoded._tag === 'Left') {
+          const errors = ParseResult.TreeFormatter.formatIssueSync(decoded.left.issue);
+          console.error('[API] Response validation failed:', errors);
+          return {
+            success: false,
+            error: `Response validation failed: ${errors}`,
+          };
+        }
+        return { ...response, data: decoded.right };
+      }
+
+      return response;
+    }
+
+    // Fallback for non-envelope responses
     // Validate response data if schema is provided
     if (schema) {
-      const decoded = S.decodeUnknownEither(schema)(data);
+      const decoded = S.decodeUnknownEither(schema)(response);
       if (decoded._tag === 'Left') {
         const errors = ParseResult.TreeFormatter.formatIssueSync(decoded.left.issue);
         console.error('[API] Response validation failed:', errors);
@@ -331,7 +380,7 @@ async function runEffect<T, I = T>(
       return { success: true, data: decoded.right };
     }
 
-    return { success: true, data };
+    return { success: true, data: response as T };
   }
 
   const error = result.cause;
@@ -413,7 +462,7 @@ class ApiClient {
    */
   async getProfile(): Promise<ApiResponse<User>> {
     return runEffect(
-      get<User>(`${this.baseUrl}/auth/profile`, { headers: getAuthHeaders() }),
+      get<User>(`${this.baseUrl}/auth/me`, { headers: getAuthHeaders() }),
       UserSchema,
     );
   }
@@ -473,16 +522,13 @@ class ApiClient {
    */
   async createRequest(data: {
     agencyId: string;
-    subject?: string;
-    requestBody?: string;
+    category: string;
+    title: string;
+    description: string;
+    dateRangeStart?: string;
+    dateRangeEnd?: string;
     templateId?: string;
-    title?: string;
-    description?: string;
-    category?: string;
-    dateRange?: string;
-    specificIndividuals?: string;
-    expeditedProcessing?: boolean;
-    feeWaiverRequested?: boolean;
+    isPublic?: boolean;
   }): Promise<ApiResponse<FoiaRequest>> {
     return runEffect(
       post<FoiaRequest>(`${this.baseUrl}/requests`, data, { headers: getAuthHeaders() }),
@@ -497,10 +543,13 @@ class ApiClient {
   async updateRequest(
     id: string,
     data: Partial<{
-      subject: string;
-      requestBody: string;
       status: FoiaRequest['status'];
-      notes: string;
+      trackingNumber: string;
+      estimatedFee: number;
+      actualFee: number;
+      dueDate: string;
+      denialReason: string;
+      isPublic: boolean;
     }>,
   ): Promise<ApiResponse<FoiaRequest>> {
     return runEffect(
@@ -510,13 +559,13 @@ class ApiClient {
   }
 
   /**
-   * Delete a FOIA request
+   * Withdraw a FOIA request
    * @compliance NIST 800-53 AU-3 (Content of Audit Records)
    */
-  async deleteRequest(id: string): Promise<ApiResponse<{ message: string }>> {
+  async withdrawRequest(id: string): Promise<ApiResponse<FoiaRequest>> {
     return runEffect(
-      del<{ message: string }>(`${this.baseUrl}/requests/${id}`, { headers: getAuthHeaders() }),
-      MessageResponseSchema,
+      post<FoiaRequest>(`${this.baseUrl}/requests/${id}/withdraw`, {}, { headers: getAuthHeaders() }),
+      FoiaRequestSchema,
     );
   }
 
@@ -622,45 +671,15 @@ class ApiClient {
    */
   async createTemplate(data: {
     name: string;
-    description?: string;
     category: string;
-    content: string;
-    tags?: string[];
-    isPublic?: boolean;
+    description: string;
+    templateText: string;
+    jurisdictionLevel?: string;
+    isOfficial?: boolean;
   }): Promise<ApiResponse<Template>> {
     return runEffect(
       post<Template>(`${this.baseUrl}/templates`, data, { headers: getAuthHeaders() }),
       TemplateSchema,
-    );
-  }
-
-  /**
-   * Update an existing template
-   */
-  async updateTemplate(
-    id: string,
-    data: Partial<{
-      name: string;
-      description: string;
-      category: string;
-      content: string;
-      tags: string[];
-      isPublic: boolean;
-    }>,
-  ): Promise<ApiResponse<Template>> {
-    return runEffect(
-      patch<Template>(`${this.baseUrl}/templates/${id}`, data, { headers: getAuthHeaders() }),
-      TemplateSchema,
-    );
-  }
-
-  /**
-   * Delete a template
-   */
-  async deleteTemplate(id: string): Promise<ApiResponse<{ message: string }>> {
-    return runEffect(
-      del<{ message: string }>(`${this.baseUrl}/templates/${id}`, { headers: getAuthHeaders() }),
-      MessageResponseSchema,
     );
   }
 
@@ -674,7 +693,7 @@ class ApiClient {
     organization?: string;
   }): Promise<ApiResponse<User>> {
     return runEffect(
-      patch<User>(`${this.baseUrl}/auth/profile`, data, { headers: getAuthHeaders() }),
+      patch<User>(`${this.baseUrl}/auth/me`, data, { headers: getAuthHeaders() }),
       UserSchema,
     );
   }
