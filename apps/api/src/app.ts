@@ -33,13 +33,24 @@
 // FOIA Stream - Main Application Entry
 // ============================================
 
+import { bodyLimit } from 'hono/body-limit';
+import { contextStorage } from 'hono/context-storage';
 import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
+import { timing } from 'hono/timing';
 
 import { env } from './config/env';
 import configureOpenAPI from './lib/configure-open-api';
 import createApp from './lib/create-app';
+import { logger } from './lib/logger';
+import {
+  apiRateLimit,
+  authRateLimit,
+  autoBanProtection,
+  passwordResetRateLimit,
+  uploadRateLimit,
+} from './middleware/rate-limit.middleware';
 import { httpsEnforcement, requestId } from './middleware/security.middleware';
 import { cacheMiddleware } from './middleware/shared.middleware';
 // OpenAPI Routes (all modules now use OpenAPI pattern)
@@ -50,6 +61,21 @@ import indexRoute from './routes/index.route';
 import redactionOpenAPIRoute from './routes/redaction';
 import requestsOpenAPIRoute from './routes/requests';
 import templatesOpenAPIRoute from './routes/templates';
+
+// ============================================
+// Timing Middleware Configuration
+// ============================================
+
+/**
+ * Server-Timing header for performance monitoring
+ * @compliance NIST 800-53 AU-12 (Audit Generation)
+ */
+const timingMiddleware = timing({
+  total: true,
+  enabled: env.NODE_ENV === 'production',
+  totalDescription: 'Total API Response Time',
+  autoEnd: true,
+});
 
 /**
  * Main Hono application instance with OpenAPI support
@@ -63,27 +89,150 @@ import templatesOpenAPIRoute from './routes/templates';
 const app = createApp();
 
 // ============================================
-// Additional Global Middleware
+// Core Middleware Stack
 // ============================================
+
+// Context storage for request-scoped data
+app.use('*', contextStorage());
+
+// Performance timing headers
+app.use('*', timingMiddleware);
 
 // Request ID for tracing
 app.use('*', requestId());
+
+// Body size limit (2MB default)
+// @compliance NIST 800-53 SI-10 (Information Input Validation)
+app.use('*', bodyLimit({ maxSize: env.MAX_FILE_SIZE || 1024 * 1024 * 2 }));
 
 // HTTPS enforcement (redirects HTTP to HTTPS in production)
 // @compliance NIST 800-53 SC-8 (Transmission Confidentiality)
 app.use('*', httpsEnforcement());
 
-// Security headers
-app.use('*', secureHeaders());
+// Enhanced security headers
+// @compliance NIST 800-53 SC-8, SC-13 (Cryptographic Protection)
+// @compliance OWASP Security Headers
+app.use(
+  '*',
+  secureHeaders({
+    // HSTS: 2 years with subdomains and preload (max security)
+    strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
+
+    // Prevent clickjacking completely
+    xFrameOptions: 'DENY',
+
+    // XSS Protection: Modern browsers use CSP, but set to 0 to prevent bypass attacks
+    // (mode=block can introduce vulnerabilities in older IE)
+    xXssProtection: '0',
+
+    // Prevent MIME type sniffing attacks
+    xContentTypeOptions: 'nosniff',
+
+    // Disable DNS prefetching to prevent information leakage
+    xDnsPrefetchControl: 'off',
+
+    // Prevent IE from opening downloads directly
+    xDownloadOptions: 'noopen',
+
+    // Block Flash/PDF cross-domain policies
+    xPermittedCrossDomainPolicies: 'none',
+
+    // Cross-Origin Isolation headers for maximum security
+    crossOriginEmbedderPolicy: 'require-corp',
+    crossOriginResourcePolicy: 'same-origin',
+    crossOriginOpenerPolicy: 'same-origin',
+
+    // Enable origin isolation for performance and security
+    originAgentCluster: true,
+
+    // Strict referrer policy - only send origin for same-origin, nothing for cross-origin
+    referrerPolicy: 'strict-origin-when-cross-origin',
+
+    // Content Security Policy - tight restrictions
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      // Scripts: self only, no inline scripts (use nonces in production)
+      scriptSrc: ["'self'"],
+      // Styles: self only, inline needed for some UI frameworks
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      // Images: self, data URIs for base64, and HTTPS sources
+      imgSrc: ["'self'", 'data:', 'https:'],
+      // Connections: same origin plus the API domain
+      connectSrc: ["'self'"],
+      // Fonts: self and data URIs
+      fontSrc: ["'self'", 'data:'],
+      // Block all object/embed/applet elements
+      objectSrc: ["'none'"],
+      // Media: self only
+      mediaSrc: ["'self'"],
+      // Frames: none - prevent embedding
+      frameSrc: ["'none'"],
+      // Frame ancestors: none - prevent being embedded
+      frameAncestors: ["'none'"],
+      // Base URI: self only - prevent base tag hijacking
+      baseUri: ["'self'"],
+      // Form actions: self only
+      formAction: ["'self'"],
+      // Upgrade insecure requests to HTTPS
+      upgradeInsecureRequests: [],
+    },
+
+    // Permissions Policy - disable ALL unnecessary browser features
+    // This prevents fingerprinting and limits attack surface
+    permissionsPolicy: {
+      // Location/sensors - disable completely
+      accelerometer: [],
+      ambientLightSensor: [],
+      autoplay: [],
+      battery: [],
+      camera: [],
+      displayCapture: [],
+      encryptedMedia: [],
+      executionWhileNotRendered: [],
+      executionWhileOutOfViewport: [],
+      fullscreen: ["'self'"],
+      gamepad: [],
+      geolocation: [],
+      gyroscope: [],
+      hid: [],
+      identityCredentialsGet: [],
+      idleDetection: [],
+      localFonts: [],
+      magnetometer: [],
+      microphone: [],
+      midi: [],
+      payment: [],
+      pictureInPicture: [],
+      publickeyCredentialsGet: [],
+      screenWakeLock: [],
+      serial: [],
+      speakerSelection: [],
+      // Only enable storage access for self
+      storageAccess: ["'self'"],
+      syncXhr: [],
+      usb: [],
+      webShare: [],
+      windowManagement: [],
+      xrSpatialTracking: [],
+    },
+  }),
+);
 
 // CORS
 app.use(
   '*',
   cors({
     origin: env.CORS_ORIGIN === '*' ? '*' : env.CORS_ORIGIN.split(','),
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'b3', 'traceparent', 'tracestate'],
-    exposeHeaders: ['Content-Length', 'X-Request-Id'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'b3',
+      'traceparent',
+      'tracestate',
+      'X-Request-Id',
+    ],
+    exposeHeaders: ['Content-Length', 'X-Request-Id', 'Server-Timing'],
     maxAge: 86400,
     credentials: true,
   }),
@@ -93,6 +242,30 @@ app.use(
 if (env.NODE_ENV === 'development') {
   app.use('*', prettyJSON());
 }
+
+// ============================================
+// Global Error Handler
+// ============================================
+
+/**
+ * Global error handler for unhandled exceptions
+ * @compliance NIST 800-53 SI-11 (Error Handling)
+ */
+app.onError((err, c) => {
+  const error = err instanceof Error ? err : new Error(String(err));
+
+  logger.error({ error: error.message, stack: error.stack }, 'Unhandled API error');
+
+  const errorResponse = {
+    success: false,
+    error: {
+      message: env.NODE_ENV === 'production' ? 'Internal server error' : error.message,
+      code: error.name || 'UNKNOWN_ERROR',
+    },
+  };
+
+  return c.json(errorResponse, 500);
+});
 
 // ============================================
 // Health Check (inline for OpenAPI spec)
@@ -153,6 +326,30 @@ app.use('/api/v1/templates/*', cacheMiddleware('Short'));
 app.use('/api/v1/requests/*', cacheMiddleware('Private'));
 app.use('/api/v1/documents/*', cacheMiddleware('Private'));
 app.use('/api/v1/redaction/*', cacheMiddleware('NoCache'));
+
+// ============================================
+// Rate Limiting
+// ============================================
+// @compliance NIST 800-53 SC-5 (Denial of Service Protection)
+
+// Global API rate limit (100 requests/minute)
+app.use('/api/v1/*', apiRateLimit);
+
+// Auto-ban protection - bans IPs after repeated rate limit violations
+app.use('/api/v1/*', autoBanProtection());
+
+// Strict rate limits for authentication endpoints (5 requests/15 min)
+// Prevents brute-force password guessing attacks
+app.use('/api/v1/auth/login', authRateLimit);
+app.use('/api/v1/auth/register', authRateLimit);
+
+// Very strict limit for password reset (3 requests/hour)
+app.use('/api/v1/auth/forgot-password', passwordResetRateLimit);
+app.use('/api/v1/auth/reset-password', passwordResetRateLimit);
+
+// Upload rate limit for document endpoints (20 uploads/hour)
+app.use('/api/v1/documents/upload', uploadRateLimit);
+app.use('/api/v1/redaction/upload', uploadRateLimit);
 
 app.route('/', indexRoute);
 app.route('/api/v1', authOpenAPIRoute);

@@ -71,64 +71,6 @@ export function httpsEnforcement(): MiddlewareHandler {
 }
 
 /**
- * Security headers middleware
- * Adds security-related HTTP headers to all responses
- *
- * @compliance NIST 800-53 SC-23 (Session Authenticity)
- * @returns {MiddlewareHandler} Hono middleware handler
- *
- * @example
- * ```typescript
- * app.use('*', securityHeaders());
- * ```
- */
-export function securityHeaders(): MiddlewareHandler {
-  return async (c: Context, next: Next) => {
-    await next();
-
-    // Prevent clickjacking
-    c.header('X-Frame-Options', 'DENY');
-
-    // Prevent MIME type sniffing
-    c.header('X-Content-Type-Options', 'nosniff');
-
-    // Enable XSS protection in older browsers
-    c.header('X-XSS-Protection', '1; mode=block');
-
-    // Referrer policy for privacy
-    c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-    // Permissions policy (formerly Feature-Policy)
-    c.header(
-      'Permissions-Policy',
-      'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
-    );
-
-    // Content Security Policy
-    if (env.NODE_ENV === 'production') {
-      c.header(
-        'Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';",
-      );
-    }
-
-    // Strict Transport Security (HSTS)
-    // Only set in production with HTTPS
-    if (env.NODE_ENV === 'production') {
-      // max-age=31536000 (1 year), includeSubDomains, preload
-      c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-    }
-
-    // Prevent caching of sensitive data
-    if (c.req.path.includes('/auth/') || c.req.path.includes('/api/')) {
-      c.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      c.header('Pragma', 'no-cache');
-      c.header('Expires', '0');
-    }
-  };
-}
-
-/**
  * Request ID middleware
  * Adds a unique request ID for tracing and debugging
  *
@@ -155,5 +97,5 @@ export function requestId(): MiddlewareHandler {
  * ```
  */
 export function allSecurityMiddleware(): MiddlewareHandler[] {
-  return [requestId(), httpsEnforcement(), securityHeaders()];
+  return [requestId(), httpsEnforcement()];
 }

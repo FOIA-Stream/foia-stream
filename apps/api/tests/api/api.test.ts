@@ -32,6 +32,20 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../src/db/schema';
 import { applyMigrations, cleanupTestDb, clearTestData, createTestDb, testData } from '../utils';
 
+// Type for API JSON responses
+interface ApiResponse {
+  success?: boolean;
+  // biome-ignore lint/suspicious/noExplicitAny: Using any for test response data to allow flexible property access
+  data?: any;
+  pagination?: { page: number; pageSize: number; total: number };
+  error?: string;
+  message?: string;
+  name?: string;
+  version?: string;
+  status?: string;
+  timestamp?: string;
+}
+
 let testSqlite: Database;
 let testDb: ReturnType<typeof drizzle>;
 const dbPath = `./data/test-api-${Date.now()}.db`;
@@ -84,7 +98,7 @@ describe('API Integration Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.name).toBe('FOIA Stream API');
       expect(data.version).toBe('1.0.0');
       expect(data.status).toBe('healthy');
@@ -95,7 +109,7 @@ describe('API Integration Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.status).toBe('healthy');
       expect(data.timestamp).toBeDefined();
     });
@@ -267,7 +281,7 @@ describe('Auth API Tests', () => {
 
       expect(res.status).toBe(201);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(true);
       expect(data.data.email).toBe(userData.email.toLowerCase());
       expect(data.data.firstName).toBe(userData.firstName);
@@ -286,7 +300,7 @@ describe('Auth API Tests', () => {
 
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(false);
       expect(data.error).toBe('Validation Error');
     });
@@ -302,7 +316,7 @@ describe('Auth API Tests', () => {
 
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(false);
     });
 
@@ -339,7 +353,7 @@ describe('Auth API Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(true);
       expect(data.data.token).toBeDefined();
       expect(data.data.user).toBeDefined();
@@ -366,7 +380,7 @@ describe('Auth API Tests', () => {
 
       expect(res.status).toBe(401);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(false);
     });
 
@@ -479,7 +493,7 @@ describe('Agency API Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(true);
       expect(data.data).toHaveLength(2);
       expect(data.pagination).toBeDefined();
@@ -490,7 +504,7 @@ describe('Agency API Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.data).toHaveLength(1);
       expect(data.data[0].abbreviation).toBe('FBI');
     });
@@ -500,7 +514,7 @@ describe('Agency API Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.data).toHaveLength(1);
       expect(data.data[0].jurisdictionLevel).toBe('federal');
     });
@@ -510,7 +524,7 @@ describe('Agency API Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.data).toHaveLength(1);
       expect(data.data[0].state).toBe('CA');
     });
@@ -522,7 +536,7 @@ describe('Agency API Tests', () => {
 
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiResponse;
       expect(data.success).toBe(true);
       expect(data.data).toBeInstanceOf(Array);
       expect(data.data[0]).toHaveProperty('code');

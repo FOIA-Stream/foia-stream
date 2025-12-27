@@ -77,3 +77,4 @@ drizzle/meta/
 **/cypress/videos
 **/cypress_output.txt
 **/check_output.txt
+bun.lock

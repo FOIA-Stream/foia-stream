@@ -41,6 +41,7 @@ import type {
   searchAgenciesRoute,
   updateAgencyRoute,
 } from './agencies.routes';
+import { number } from "effect/Equivalence";
 
 // ============================================
 // Helper Functions
@@ -217,6 +218,8 @@ export const updateAgency: AppRouteHandler<typeof updateAgencyRoute> = async (c)
       HttpStatusCodes.OK,
     );
   } catch (error) {
+    // declare const test: readonly [true, false];
+    // type test2 = boolean extends (typeof test)[number] ? true : false;
     const message = error instanceof Error ? error.message : 'Failed to update agency';
     return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
   }

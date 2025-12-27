@@ -9,7 +9,7 @@
 
 import { z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
-
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { HttpStatusCodes } from './constants';
 
 // ============================================
@@ -75,13 +75,13 @@ export function paginatedResponseSchema<T extends z.ZodTypeAny>(itemSchema: T) {
 /**
  * Send a success response with data
  */
-export function successResponse<T>(
+export function successResponse<T, S extends ContentfulStatusCode = 200>(
   c: Context,
   data: T,
-  options?: { message?: string; status?: number },
+  options?: { message?: string; status?: S },
 ) {
   const response: { success: true; data: T; message?: string } = {
-    success: true,
+    success: true as const,
     data,
   };
 
@@ -89,21 +89,29 @@ export function successResponse<T>(
     response.message = options.message;
   }
 
-  return c.json(response, (options?.status ?? 200) as any);
+  return c.json(response, (options?.status ?? 200) as S);
 }
 
 /**
  * Send an error response
  */
-export function errorResponse(c: Context, error: string, status: number = 400) {
-  return c.json({ success: false, error }, status as any);
+export function errorResponse<S extends ContentfulStatusCode = 400>(
+  c: Context,
+  error: string,
+  status: S = 400 as S,
+) {
+  return c.json({ success: false as const, error }, status);
 }
 
 /**
  * Send a message-only success response
  */
-export function messageResponse(c: Context, message: string, status: number = 200) {
-  return c.json({ success: true, message }, status as any);
+export function messageResponse<S extends ContentfulStatusCode = 200>(
+  c: Context,
+  message: string,
+  status: S = 200 as S,
+) {
+  return c.json({ success: true as const, message }, status);
 }
 
 /**

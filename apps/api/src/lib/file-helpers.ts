@@ -34,7 +34,7 @@ export interface FileParseResult {
 export interface FileParseError {
   success: false;
   error: string;
-  status: number;
+  status: 400;
 }
 
 export interface PdfScanResult {

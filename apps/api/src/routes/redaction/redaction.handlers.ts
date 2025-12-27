@@ -7,9 +7,9 @@
  * @compliance NIST 800-53 MP-6 (Media Sanitization)
  */
 
+import { HttpStatusCodes } from '@/lib/constants';
 import { parseFormDataJson, parsePdfFile, pdfResponse } from '@/lib/file-helpers';
 import { logger } from '@/lib/logger';
-import { errorResponse, successResponse } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import {
   pdfRedactionService,
@@ -78,13 +78,19 @@ export const applyRedactions: AppRouteHandler<typeof applyRedactionsRoute> = asy
   try {
     const fileResult = await parsePdfFile(c);
     if (!fileResult.success) {
-      return errorResponse(c, fileResult.error, fileResult.status);
+      return c.json(
+        { success: false as const, error: fileResult.error },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const formData = await c.req.formData();
     const dataResult = parseFormDataJson(formData, 'data', ApplyRedactionsEffectSchema);
     if (!dataResult.success) {
-      return errorResponse(c, dataResult.error, 400);
+      return c.json(
+        { success: false as const, error: dataResult.error },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const { areas, options } = dataResult.data;
@@ -102,7 +108,10 @@ export const applyRedactions: AppRouteHandler<typeof applyRedactionsRoute> = asy
     );
 
     if (!result.pdfBytes) {
-      return errorResponse(c, 'Failed to apply redactions', 500);
+      return c.json(
+        { success: false as const, error: 'Failed to apply redactions' },
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+      );
     }
 
     return pdfResponse(result.pdfBytes, 'redacted.pdf', {
@@ -114,7 +123,10 @@ export const applyRedactions: AppRouteHandler<typeof applyRedactionsRoute> = asy
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Redaction failed';
     logger.error({ error: message }, 'PDF redaction error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -125,13 +137,19 @@ export const previewRedactions: AppRouteHandler<typeof previewRedactionsRoute> =
   try {
     const fileResult = await parsePdfFile(c);
     if (!fileResult.success) {
-      return errorResponse(c, fileResult.error, fileResult.status);
+      return c.json(
+        { success: false as const, error: fileResult.error },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const formData = await c.req.formData();
     const dataResult = parseFormDataJson(formData, 'data', PreviewRedactionsEffectSchema);
     if (!dataResult.success) {
-      return errorResponse(c, dataResult.error, 400);
+      return c.json(
+        { success: false as const, error: dataResult.error },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const previewPdf = await pdfRedactionService.previewRedactions(
@@ -143,7 +161,10 @@ export const previewRedactions: AppRouteHandler<typeof previewRedactionsRoute> =
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Preview generation failed';
     logger.error({ error: message }, 'PDF preview error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -154,23 +175,35 @@ export const getPdfInfo: AppRouteHandler<typeof getPdfInfoRoute> = async (c) => 
   try {
     const fileResult = await parsePdfFile(c);
     if (!fileResult.success) {
-      return errorResponse(c, fileResult.error, fileResult.status);
+      return c.json(
+        { success: false as const, error: fileResult.error },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const info = await getPDFInfo(fileResult.buffer);
 
-    return successResponse(c, {
-      pageCount: info.pageCount,
-      version: null,
-      title: null,
-      author: null,
-      isEncrypted: false,
-      hasJavaScript: false,
-    });
+    return c.json(
+      {
+        success: true as const,
+        data: {
+          pageCount: info.pageCount,
+          version: null,
+          title: null,
+          author: null,
+          isEncrypted: false,
+          hasJavaScript: false,
+        },
+      },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get PDF info';
     logger.error({ error: message }, 'PDF info error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -181,15 +214,24 @@ export const redactTextInPdf: AppRouteHandler<typeof redactTextInPdfRoute> = asy
   try {
     const fileResult = await parsePdfFile(c);
     if (!fileResult.success) {
-      return errorResponse(c, fileResult.error, fileResult.status);
+      return c.json(
+        { success: false as const, error: fileResult.error },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     // Note: Text search in PDF is complex and not yet implemented
     // For now, return an error indicating this feature is coming soon
-    return errorResponse(c, 'Text search redaction is not yet implemented', 501);
+    return c.json(
+      { success: false as const, error: 'Text search redaction is not yet implemented' },
+      HttpStatusCodes.NOT_IMPLEMENTED,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Text redaction failed';
     logger.error({ error: message }, 'PDF text redaction error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };

@@ -78,9 +78,9 @@ describe('AuthService', () => {
         .returning();
 
       expect(result).toHaveLength(1);
-      expect(result[0].email).toBe(userData.email.toLowerCase());
-      expect(result[0].firstName).toBe(userData.firstName);
-      expect(result[0].role).toBe('civilian');
+      expect(result[0]?.email).toBe(userData.email.toLowerCase());
+      expect(result[0]?.firstName).toBe(userData.firstName);
+      expect(result[0]?.role).toBe('civilian');
     });
 
     it('should not allow duplicate emails', async () => {
@@ -122,8 +122,7 @@ describe('AuthService', () => {
     it('should support different user roles', async () => {
       const roles = ['civilian', 'journalist', 'researcher', 'attorney', 'admin'] as const;
 
-      for (let i = 0; i < roles.length; i++) {
-        const role = roles[i];
+      for (const [i, role] of roles.entries()) {
         const result = await testDb
           .insert(schema.users)
           .values({
@@ -141,7 +140,7 @@ describe('AuthService', () => {
           })
           .returning();
 
-        expect(result[0].role).toBe(role);
+        expect(result[0]?.role).toBe(role);
       }
     });
   });
@@ -177,8 +176,8 @@ describe('AuthService', () => {
         .returning();
 
       expect(result).toHaveLength(1);
-      expect(result[0].userId).toBe('test-user-session');
-      expect(result[0].token).toBe('test-jwt-token');
+      expect(result[0]?.userId).toBe('test-user-session');
+      expect(result[0]?.token).toBe('test-jwt-token');
     });
 
     it('should delete session on logout', async () => {
@@ -334,8 +333,8 @@ describe('AuthService', () => {
         .returning();
 
       expect(result).toHaveLength(1);
-      expect(result[0].action).toBe('user_created');
-      expect(result[0].resourceType).toBe('user');
+      expect(result[0]?.action).toBe('user_created');
+      expect(result[0]?.resourceType).toBe('user');
     });
   });
 });

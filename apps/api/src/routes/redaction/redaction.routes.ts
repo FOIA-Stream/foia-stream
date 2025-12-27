@@ -60,6 +60,7 @@ export const applyRedactionsRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -97,6 +98,7 @@ export const previewRedactionsRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -132,6 +134,7 @@ export const getPdfInfoRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -168,5 +171,6 @@ export const redactTextInPdfRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });

@@ -11,8 +11,8 @@
 import { env } from '@/config/env';
 import { db } from '@/db';
 import { customRedactionTemplates, documentAccessLog, secureDocuments } from '@/db/schema';
+import { HttpStatusCodes } from '@/lib/constants';
 import { logger } from '@/lib/logger';
-import { errorResponse, messageResponse, successResponse } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import { mfaService } from '@/services/auth/mfa.service';
 import {
@@ -101,17 +101,23 @@ export const listDocuments: AppRouteHandler<typeof listDocumentsRoute> = async (
       .where(eq(secureDocuments.uploadedBy, userId))
       .orderBy(desc(secureDocuments.createdAt));
 
-    return successResponse(
-      c,
-      userDocuments.map((doc) => ({
-        ...doc,
-        hasPassword: !!doc.hasPassword,
-      })),
+    return c.json(
+      {
+        success: true as const,
+        data: userDocuments.map((doc) => ({
+          ...doc,
+          hasPassword: !!doc.hasPassword,
+        })),
+      },
+      HttpStatusCodes.OK,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list documents';
     logger.error({ error: message }, 'Document list error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -129,34 +135,46 @@ export const getDocument: AppRouteHandler<typeof getDocumentRoute> = async (c) =
       .where(and(eq(secureDocuments.id, documentId), eq(secureDocuments.uploadedBy, userId)));
 
     if (!document) {
-      return errorResponse(c, 'Document not found', 404);
+      return c.json(
+        { success: false as const, error: 'Document not found' },
+        HttpStatusCodes.NOT_FOUND,
+      );
     }
 
-    return successResponse(c, {
-      id: document.id,
-      originalFileName: document.originalFileName,
-      fileSize: document.fileSize,
-      mimeType: document.mimeType,
-      status: document.status,
-      virusScan: document.virusScanResult
-        ? {
-            isSafe: document.virusScanResult.isSafe ?? false,
-            scanned: !!document.virusScanResult.scannedAt,
-            message: document.virusScanResult.status,
-          }
-        : null,
-      requiresMfa: document.requiresMfa,
-      hasPassword: !!document.accessPasswordHash,
-      expiresAt: document.expiresAt,
-      accessCount: document.accessCount,
-      lastAccessedAt: document.lastAccessedAt,
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt,
-    });
+    return c.json(
+      {
+        success: true as const,
+        data: {
+          id: document.id,
+          originalFileName: document.originalFileName,
+          fileSize: document.fileSize,
+          mimeType: document.mimeType,
+          status: document.status,
+          virusScan: document.virusScanResult
+            ? {
+                isSafe: document.virusScanResult.isSafe ?? false,
+                scanned: !!document.virusScanResult.scannedAt,
+                message: document.virusScanResult.status,
+              }
+            : null,
+          requiresMfa: document.requiresMfa,
+          hasPassword: !!document.accessPasswordHash,
+          expiresAt: document.expiresAt,
+          accessCount: document.accessCount,
+          lastAccessedAt: document.lastAccessedAt,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt,
+        },
+      },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get document';
     logger.error({ error: message }, 'Document get error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -174,7 +192,10 @@ export const deleteDocument: AppRouteHandler<typeof deleteDocumentRoute> = async
       .where(and(eq(secureDocuments.id, documentId), eq(secureDocuments.uploadedBy, userId)));
 
     if (!document) {
-      return errorResponse(c, 'Document not found', 404);
+      return c.json(
+        { success: false as const, error: 'Document not found' },
+        HttpStatusCodes.NOT_FOUND,
+      );
     }
 
     // Delete file
@@ -200,11 +221,17 @@ export const deleteDocument: AppRouteHandler<typeof deleteDocumentRoute> = async
     );
 
     logger.info({ documentId, userId }, 'Document deleted');
-    return messageResponse(c, 'Document deleted successfully');
+    return c.json(
+      { success: true as const, message: 'Document deleted successfully' },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Delete failed';
     logger.error({ error: message }, 'Document delete error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -227,17 +254,26 @@ export const verifyMfa: AppRouteHandler<typeof verifyMfaRoute> = async (c) => {
       .where(and(eq(secureDocuments.id, documentId), eq(secureDocuments.uploadedBy, userId)));
 
     if (!document) {
-      return errorResponse(c, 'Document not found', 404);
+      return c.json(
+        { success: false as const, error: 'Document not found' },
+        HttpStatusCodes.NOT_FOUND,
+      );
     }
 
     if (!document.requiresMfa) {
-      return errorResponse(c, 'MFA not required for this document', 400);
+      return c.json(
+        { success: false as const, error: 'MFA not required for this document' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     // Verify MFA code
     const mfaResult = await mfaService.verifyMFA(userId, code);
     if (!mfaResult.success) {
-      return errorResponse(c, 'Invalid MFA code', 401);
+      return c.json(
+        { success: false as const, error: 'Invalid MFA code' },
+        HttpStatusCodes.UNAUTHORIZED,
+      );
     }
 
     // Generate access token
@@ -262,11 +298,17 @@ export const verifyMfa: AppRouteHandler<typeof verifyMfaRoute> = async (c) => {
       { action: 'mfa_verified' },
     );
 
-    return successResponse(c, { accessToken, expiresIn: 3600 });
+    return c.json(
+      { success: true as const, data: { accessToken, expiresIn: 3600 } },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'MFA verification failed';
     logger.error({ error: message }, 'MFA verification error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -285,18 +327,27 @@ export const verifyPassword: AppRouteHandler<typeof verifyPasswordRoute> = async
       .where(and(eq(secureDocuments.id, documentId), eq(secureDocuments.uploadedBy, userId)));
 
     if (!document) {
-      return errorResponse(c, 'Document not found', 404);
+      return c.json(
+        { success: false as const, error: 'Document not found' },
+        HttpStatusCodes.NOT_FOUND,
+      );
     }
 
     if (!document.accessPasswordHash) {
-      return errorResponse(c, 'Password not required for this document', 400);
+      return c.json(
+        { success: false as const, error: 'Password not required for this document' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     // Verify password
     const { verifyPassword: verifyPwd } = await import('@/services/auth/password.service');
     const isValid = await verifyPwd(password, document.accessPasswordHash);
     if (!isValid) {
-      return errorResponse(c, 'Invalid password', 401);
+      return c.json(
+        { success: false as const, error: 'Invalid password' },
+        HttpStatusCodes.UNAUTHORIZED,
+      );
     }
 
     // Generate access token
@@ -321,11 +372,17 @@ export const verifyPassword: AppRouteHandler<typeof verifyPasswordRoute> = async
       { action: 'password_verified' },
     );
 
-    return successResponse(c, { accessToken, expiresIn: 3600 });
+    return c.json(
+      { success: true as const, data: { accessToken, expiresIn: 3600 } },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Password verification failed';
     logger.error({ error: message }, 'Password verification error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -351,29 +408,38 @@ export const listRedactionTemplates: AppRouteHandler<typeof listRedactionTemplat
       .from(customRedactionTemplates)
       .where(eq(customRedactionTemplates.userId, userId));
 
-    return successResponse(c, {
-      systemTemplates: systemTemplates.map((t) => ({
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        category: t.category,
-        patterns: t.patterns,
-        isShared: false,
-      })),
-      customTemplates: userTemplates.map((t) => ({
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        category: t.category,
-        patterns: t.patterns as RedactionPattern[],
-        isShared: t.isShared,
-        createdAt: t.createdAt,
-      })),
-    });
+    return c.json(
+      {
+        success: true as const,
+        data: {
+          systemTemplates: systemTemplates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            category: t.category,
+            patterns: t.patterns,
+            isShared: false,
+          })),
+          customTemplates: userTemplates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            category: t.category,
+            patterns: t.patterns as RedactionPattern[],
+            isShared: t.isShared,
+            createdAt: t.createdAt,
+          })),
+        },
+      },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list templates';
     logger.error({ error: message }, 'Template list error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -404,23 +470,28 @@ export const createRedactionTemplate: AppRouteHandler<typeof createRedactionTemp
 
     logger.info({ templateId, userId }, 'Custom redaction template created');
 
-    return successResponse(
-      c,
+    return c.json(
       {
-        id: templateId,
-        name: data.name,
-        description: data.description || null,
-        category: data.category || null,
-        patterns: data.patterns,
-        isShared: data.isShared || false,
-        createdAt: now,
+        success: true as const,
+        data: {
+          id: templateId,
+          name: data.name,
+          description: data.description || null,
+          category: data.category || null,
+          patterns: data.patterns,
+          isShared: data.isShared || false,
+          createdAt: now,
+        },
       },
-      { status: 201 },
+      HttpStatusCodes.CREATED,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create template';
     logger.error({ error: message }, 'Template creation error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -436,7 +507,10 @@ export const redactText: AppRouteHandler<typeof redactTextRoute> = async (c) => 
     if (data.templateId) {
       result = autoRedactionService.scanWithTemplate(data.text, data.templateId);
       if (!result) {
-        return errorResponse(c, `Template '${data.templateId}' not found`, 400);
+        return c.json(
+          { success: false as const, error: `Template '${data.templateId}' not found` },
+          HttpStatusCodes.BAD_REQUEST,
+        );
       }
     } else if (data.patternIds && data.patternIds.length > 0) {
       result = autoRedactionService.scanText(data.text, data.patternIds);
@@ -444,16 +518,25 @@ export const redactText: AppRouteHandler<typeof redactTextRoute> = async (c) => 
       result = autoRedactionService.scanText(data.text, 'all');
     }
 
-    return successResponse(c, {
-      originalText: data.text,
-      redactedText: result.redactedText,
-      redactionsApplied: result.totalMatches,
-      patternsMatched: result.patternsUsed,
-    });
+    return c.json(
+      {
+        success: true as const,
+        data: {
+          originalText: data.text,
+          redactedText: result.redactedText,
+          redactionsApplied: result.totalMatches,
+          patternsMatched: result.patternsUsed,
+        },
+      },
+      HttpStatusCodes.OK,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Text redaction failed';
     logger.error({ error: message }, 'Text redaction error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -476,22 +559,34 @@ export const uploadPdf: AppRouteHandler<typeof uploadPdfRoute> = async (c) => {
     const contentType = c.req.header('Content-Type') || '';
 
     if (!contentType.includes('multipart/form-data')) {
-      return errorResponse(c, 'Request must be multipart/form-data', 400);
+      return c.json(
+        { success: false as const, error: 'Request must be multipart/form-data' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const formData = await c.req.formData();
     const file = formData.get('file');
 
     if (!file || !(file instanceof File)) {
-      return errorResponse(c, 'Please provide a file in the "file" field', 400);
+      return c.json(
+        { success: false as const, error: 'Please provide a file in the "file" field' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return errorResponse(c, `Maximum file size is ${MAX_FILE_SIZE / 1024 / 1024}MB`, 400);
+      return c.json(
+        { success: false as const, error: `Maximum file size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     if (file.type !== 'application/pdf') {
-      return errorResponse(c, 'Only PDF files are allowed', 400);
+      return c.json(
+        { success: false as const, error: 'Only PDF files are allowed' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -523,12 +618,15 @@ export const uploadPdf: AppRouteHandler<typeof uploadPdfRoute> = async (c) => {
           },
         },
       },
-      200,
+      HttpStatusCodes.OK,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';
     logger.error({ error: message }, 'PDF upload error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 
@@ -541,7 +639,10 @@ export const validatePdf: AppRouteHandler<typeof validatePdfRoute> = async (c) =
     const file = formData.get('file');
 
     if (!file || !(file instanceof File)) {
-      return errorResponse(c, 'Please provide a file in the "file" field', 400);
+      return c.json(
+        { success: false as const, error: 'Please provide a file in the "file" field' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -560,12 +661,15 @@ export const validatePdf: AppRouteHandler<typeof validatePdfRoute> = async (c) =
           errors: [...validation.errors],
         },
       },
-      200,
+      HttpStatusCodes.OK,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Validation failed';
     logger.error({ error: message }, 'PDF validation error');
-    return errorResponse(c, message, 500);
+    return c.json(
+      { success: false as const, error: message },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 };
 

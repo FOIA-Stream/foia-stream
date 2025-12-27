@@ -75,9 +75,9 @@ describe('AgencyService', () => {
         .returning();
 
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Federal Bureau of Investigation');
-      expect(result[0].abbreviation).toBe('FBI');
-      expect(result[0].jurisdictionLevel).toBe('federal');
+      expect(result[0]?.name).toBe('Federal Bureau of Investigation');
+      expect(result[0]?.abbreviation).toBe('FBI');
+      expect(result[0]?.jurisdictionLevel).toBe('federal');
     });
 
     it('should create a state agency with state field', async () => {
@@ -96,8 +96,8 @@ describe('AgencyService', () => {
         })
         .returning();
 
-      expect(result[0].jurisdictionLevel).toBe('state');
-      expect(result[0].state).toBe('CA');
+      expect(result[0]?.jurisdictionLevel).toBe('state');
+      expect(result[0]?.state).toBe('CA');
     });
 
     it('should create a local agency with city field', async () => {
@@ -117,8 +117,8 @@ describe('AgencyService', () => {
         })
         .returning();
 
-      expect(result[0].jurisdictionLevel).toBe('local');
-      expect(result[0].city).toBe('New York');
+      expect(result[0]?.jurisdictionLevel).toBe('local');
+      expect(result[0]?.city).toBe('New York');
     });
 
     it('should create a county agency', async () => {
@@ -136,8 +136,8 @@ describe('AgencyService', () => {
         })
         .returning();
 
-      expect(result[0].jurisdictionLevel).toBe('county');
-      expect(result[0].county).toBe('Los Angeles');
+      expect(result[0]?.jurisdictionLevel).toBe('county');
+      expect(result[0]?.county).toBe('Los Angeles');
     });
   });
 
@@ -163,8 +163,8 @@ describe('AgencyService', () => {
         .where(eq(schema.agencies.id, 'agency-update-1'))
         .returning();
 
-      expect(result[0].name).toBe('Updated Name');
-      expect(result[0].foiaEmail).toBe('new-email@agency.gov');
+      expect(result[0]?.name).toBe('Updated Name');
+      expect(result[0]?.foiaEmail).toBe('new-email@agency.gov');
     });
 
     it('should update response deadline days', async () => {
@@ -183,7 +183,7 @@ describe('AgencyService', () => {
         .where(eq(schema.agencies.id, 'agency-deadline-1'))
         .returning();
 
-      expect(result[0].responseDeadlineDays).toBe(30);
+      expect(result[0]?.responseDeadlineDays).toBe(30);
     });
   });
 
@@ -236,7 +236,7 @@ describe('AgencyService', () => {
         .where(like(schema.agencies.name, '%Bureau%'));
 
       expect(results).toHaveLength(1);
-      expect(results[0].name).toContain('Bureau');
+      expect(results[0]?.name).toContain('Bureau');
     });
 
     it('should search by abbreviation', async () => {
@@ -246,7 +246,7 @@ describe('AgencyService', () => {
         .where(eq(schema.agencies.abbreviation, 'FBI'));
 
       expect(results).toHaveLength(1);
-      expect(results[0].abbreviation).toBe('FBI');
+      expect(results[0]?.abbreviation).toBe('FBI');
     });
 
     it('should filter by jurisdiction level', async () => {

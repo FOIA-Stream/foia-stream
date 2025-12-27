@@ -50,6 +50,7 @@ export const listDocumentsRoute = createRoute({
       description: 'List of documents',
     },
     ...commonResponses.unauthorized,
+    ...commonResponses.serverError,
   },
 });
 
@@ -85,6 +86,7 @@ export const getDocumentRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.notFound,
+    ...commonResponses.serverError,
   },
 });
 
@@ -120,6 +122,7 @@ export const deleteDocumentRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.notFound,
+    ...commonResponses.serverError,
   },
 });
 
@@ -168,6 +171,7 @@ export const verifyMfaRoute = createRoute({
     ...commonResponses.unauthorized,
     ...commonResponses.notFound,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -212,6 +216,7 @@ export const verifyPasswordRoute = createRoute({
     ...commonResponses.unauthorized,
     ...commonResponses.notFound,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -244,6 +249,7 @@ export const listRedactionTemplatesRoute = createRoute({
       description: 'List of redaction templates',
     },
     ...commonResponses.unauthorized,
+    ...commonResponses.serverError,
   },
 });
 
@@ -277,6 +283,7 @@ export const createRedactionTemplateRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -314,6 +321,7 @@ export const redactTextRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -418,6 +426,7 @@ export const uploadPdfRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 
@@ -453,6 +462,7 @@ export const validatePdfRoute = createRoute({
     },
     ...commonResponses.unauthorized,
     ...commonResponses.badRequest,
+    ...commonResponses.serverError,
   },
 });
 

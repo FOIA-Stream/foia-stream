@@ -128,8 +128,7 @@ describe('FOIARequestService', () => {
         'other',
       ] as const;
 
-      for (let i = 0; i < categories.length; i++) {
-        const category = categories[i];
+      for (const [i, category] of categories.entries()) {
         const result = await testDb
           .insert(schema.foiaRequests)
           .values({
