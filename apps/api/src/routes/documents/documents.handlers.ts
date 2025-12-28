@@ -13,6 +13,7 @@ import { db } from '@/db';
 import { customRedactionTemplates, documentAccessLog, secureDocuments } from '@/db/schema';
 import { HttpStatusCodes } from '@/lib/constants';
 import { logger } from '@/lib/logger';
+import { handleRouteError } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import { mfaService } from '@/services/auth/mfa.service';
 import {
@@ -112,10 +113,14 @@ export const listDocuments: AppRouteHandler<typeof listDocumentsRoute> = async (
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to list documents';
-    logger.error({ error: message }, 'Document list error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Failed to list documents' },
+      'Document list error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Failed to list documents',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -169,10 +174,14 @@ export const getDocument: AppRouteHandler<typeof getDocumentRoute> = async (c) =
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get document';
-    logger.error({ error: message }, 'Document get error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Failed to get document' },
+      'Document get error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Failed to get document',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -226,12 +235,11 @@ export const deleteDocument: AppRouteHandler<typeof deleteDocumentRoute> = async
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Delete failed';
-    logger.error({ error: message }, 'Document delete error');
-    return c.json(
-      { success: false as const, error: message },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Delete failed' },
+      'Document delete error',
     );
+    return handleRouteError(c, error, 'Delete failed', HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -303,10 +311,14 @@ export const verifyMfa: AppRouteHandler<typeof verifyMfaRoute> = async (c) => {
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'MFA verification failed';
-    logger.error({ error: message }, 'MFA verification error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'MFA verification failed' },
+      'MFA verification error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'MFA verification failed',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -377,10 +389,14 @@ export const verifyPassword: AppRouteHandler<typeof verifyPasswordRoute> = async
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Password verification failed';
-    logger.error({ error: message }, 'Password verification error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Password verification failed' },
+      'Password verification error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Password verification failed',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -434,10 +450,14 @@ export const listRedactionTemplates: AppRouteHandler<typeof listRedactionTemplat
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to list templates';
-    logger.error({ error: message }, 'Template list error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Failed to list templates' },
+      'Template list error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Failed to list templates',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -486,10 +506,14 @@ export const createRedactionTemplate: AppRouteHandler<typeof createRedactionTemp
       HttpStatusCodes.CREATED,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create template';
-    logger.error({ error: message }, 'Template creation error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Failed to create template' },
+      'Template creation error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Failed to create template',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -531,10 +555,14 @@ export const redactText: AppRouteHandler<typeof redactTextRoute> = async (c) => 
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Text redaction failed';
-    logger.error({ error: message }, 'Text redaction error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Text redaction failed' },
+      'Text redaction error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Text redaction failed',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -621,12 +649,11 @@ export const uploadPdf: AppRouteHandler<typeof uploadPdfRoute> = async (c) => {
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    logger.error({ error: message }, 'PDF upload error');
-    return c.json(
-      { success: false as const, error: message },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Upload failed' },
+      'PDF upload error',
     );
+    return handleRouteError(c, error, 'Upload failed', HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -664,12 +691,11 @@ export const validatePdf: AppRouteHandler<typeof validatePdfRoute> = async (c) =
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Validation failed';
-    logger.error({ error: message }, 'PDF validation error');
-    return c.json(
-      { success: false as const, error: message },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Validation failed' },
+      'PDF validation error',
     );
+    return handleRouteError(c, error, 'Validation failed', HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

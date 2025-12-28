@@ -39,17 +39,16 @@ import {
   Eraser,
   FileText,
   Loader2,
-  RotateCcw,
   Trash2,
   Type,
   X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as PDFJS from 'pdfjs-dist';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { API_BASE } from '../../lib/config';
+import { API_BASE } from '../../../lib/config';
 
 // ============================================
 // Types
@@ -353,7 +352,6 @@ export default function PDFTextRedactor({
     setSelectionStart(null);
     setCurrentSelection(null);
   }, [isSelecting, currentSelection, currentPage, getTextInSelection]);
-
 
   // ============================================
   // Selection Management
@@ -678,6 +676,8 @@ export default function PDFTextRedactor({
           <div className="flex min-h-full items-start justify-center p-8">
             <div
               ref={containerRef}
+              role="img"
+              aria-label="PDF redaction area. Click and drag to select text regions for redaction."
               className="relative cursor-crosshair shadow-2xl"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -697,9 +697,10 @@ export default function PDFTextRedactor({
               {/* Selection overlays for current page */}
               {currentPageSelections.map((sel) =>
                 sel.rects.map((rect, idx) => (
-                  <div
+                  <button
+                    type="button"
                     key={`${sel.id}-${idx}`}
-                    className={`absolute border-2 transition-colors ${
+                    className={`absolute border-2 transition-colors cursor-pointer ${
                       selectedId === sel.id
                         ? 'border-accent-400 bg-accent-400/40'
                         : 'border-red-500 bg-red-500/40'
@@ -714,6 +715,7 @@ export default function PDFTextRedactor({
                       e.stopPropagation();
                       setSelectedId(sel.id);
                     }}
+                    aria-label={`Selection ${idx + 1}: ${sel.text.substring(0, 50)}`}
                   />
                 )),
               )}

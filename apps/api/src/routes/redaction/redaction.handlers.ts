@@ -10,6 +10,7 @@
 import { HttpStatusCodes } from '@/lib/constants';
 import { parseFormDataJson, parsePdfFile, pdfResponse } from '@/lib/file-helpers';
 import { logger } from '@/lib/logger';
+import { handleRouteError } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import {
   pdfRedactionService,
@@ -121,12 +122,11 @@ export const applyRedactions: AppRouteHandler<typeof applyRedactionsRoute> = asy
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Redaction failed';
-    logger.error({ error: message }, 'PDF redaction error');
-    return c.json(
-      { success: false as const, error: message },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Redaction failed' },
+      'PDF redaction error',
     );
+    return handleRouteError(c, error, 'Redaction failed', HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -159,10 +159,14 @@ export const previewRedactions: AppRouteHandler<typeof previewRedactionsRoute> =
 
     return pdfResponse(previewPdf, 'preview.pdf', { inline: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Preview generation failed';
-    logger.error({ error: message }, 'PDF preview error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Preview generation failed' },
+      'PDF preview error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Preview generation failed',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -198,10 +202,14 @@ export const getPdfInfo: AppRouteHandler<typeof getPdfInfoRoute> = async (c) => 
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get PDF info';
-    logger.error({ error: message }, 'PDF info error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Failed to get PDF info' },
+      'PDF info error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Failed to get PDF info',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
@@ -227,10 +235,14 @@ export const redactTextInPdf: AppRouteHandler<typeof redactTextInPdfRoute> = asy
       HttpStatusCodes.NOT_IMPLEMENTED,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Text redaction failed';
-    logger.error({ error: message }, 'PDF text redaction error');
-    return c.json(
-      { success: false as const, error: message },
+    logger.error(
+      { error: error instanceof Error ? error.message : 'Text redaction failed' },
+      'PDF text redaction error',
+    );
+    return handleRouteError(
+      c,
+      error,
+      'Text redaction failed',
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }

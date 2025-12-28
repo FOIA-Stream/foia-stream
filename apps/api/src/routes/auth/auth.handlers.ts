@@ -29,6 +29,8 @@
  * @compliance NIST 800-53 AC-2 (Account Management)
  */
 
+import { HttpStatusCodes } from '@/lib/constants';
+import { handleRouteError } from '@/lib/responses';
 import { apiKeyService } from '@/services/auth/api-key.service';
 import { authService } from '@/services/auth/auth.service';
 import { type ConsentData, consentService } from '@/services/auth/consent.service';
@@ -112,8 +114,7 @@ export const register = async (c: Context) => {
       201,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Registration failed';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Registration failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -144,8 +145,7 @@ export const login = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Login failed';
-    return c.json({ success: false, error: message }, 401);
+    return handleRouteError(c, error, 'Login failed', HttpStatusCodes.UNAUTHORIZED);
   }
 };
 
@@ -177,8 +177,7 @@ export const verifyMFALogin = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'MFA verification failed';
-    return c.json({ success: false, error: message }, 401);
+    return handleRouteError(c, error, 'MFA verification failed', HttpStatusCodes.UNAUTHORIZED);
   }
 };
 
@@ -195,7 +194,7 @@ export const logout = async (c: Context) => {
     const token = authHeader?.substring(7);
 
     if (!token) {
-      return c.json({ success: false, error: 'No token provided' }, 400);
+      return c.json({ success: false, error: 'No token provided' }, HttpStatusCodes.BAD_REQUEST);
     }
 
     await authService.logout(token);
@@ -208,8 +207,7 @@ export const logout = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Logout failed';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Logout failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -225,7 +223,7 @@ export const getMe = async (c: Context) => {
     const user = await authService.getUserById(userId);
 
     if (!user) {
-      return c.json({ success: false, error: 'User not found' }, 404);
+      return c.json({ success: false, error: 'User not found' }, HttpStatusCodes.NOT_FOUND);
     }
 
     return c.json(
@@ -237,8 +235,7 @@ export const getMe = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get profile';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to get profile', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -264,8 +261,7 @@ export const updateMe = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Update failed';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Update failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -291,8 +287,7 @@ export const changePassword = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Password change failed';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Password change failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -320,8 +315,7 @@ export const getMFAStatus = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get MFA status';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to get MFA status', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -351,8 +345,7 @@ export const setupMFA = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to setup MFA';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to setup MFA', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -367,7 +360,10 @@ export const verifyMFA = async (c: Context) => {
     const success = await mfaService.verifyAndEnableMFA(userId, code);
 
     if (!success) {
-      return c.json({ success: false, error: 'Invalid verification code' }, 400);
+      return c.json(
+        { success: false, error: 'Invalid verification code' },
+        HttpStatusCodes.BAD_REQUEST,
+      );
     }
 
     return c.json(
@@ -378,8 +374,7 @@ export const verifyMFA = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to verify MFA';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to verify MFA', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -399,7 +394,7 @@ export const disableMFA = async (c: Context) => {
 
     const verifyResult = await mfaService.verifyMFA(userId, code);
     if (!verifyResult.success) {
-      return c.json({ success: false, error: 'Invalid MFA code' }, 400);
+      return c.json({ success: false, error: 'Invalid MFA code' }, HttpStatusCodes.BAD_REQUEST);
     }
 
     await mfaService.disableMFA(userId);
@@ -412,8 +407,7 @@ export const disableMFA = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to disable MFA';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to disable MFA', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -433,7 +427,7 @@ export const regenerateBackupCodes = async (c: Context) => {
 
     const status = await mfaService.getMFAStatus(userId);
     if (!status.enabled) {
-      return c.json({ success: false, error: 'MFA is not enabled' }, 400);
+      return c.json({ success: false, error: 'MFA is not enabled' }, HttpStatusCodes.BAD_REQUEST);
     }
 
     const backupCodes = await mfaService.regenerateBackupCodes(userId);
@@ -447,8 +441,12 @@ export const regenerateBackupCodes = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to regenerate backup codes';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(
+      c,
+      error,
+      'Failed to regenerate backup codes',
+      HttpStatusCodes.BAD_REQUEST,
+    );
   }
 };
 
@@ -476,8 +474,7 @@ export const getSessions = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get sessions';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to get sessions', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -501,9 +498,9 @@ export const revokeSession = async (c: Context) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to revoke session';
     if (message.includes('not found')) {
-      return c.json({ success: false, error: message }, 404);
+      return handleRouteError(c, error, 'Failed to revoke session', HttpStatusCodes.NOT_FOUND);
     }
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to revoke session', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -528,8 +525,7 @@ export const getApiKey = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get API key';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to get API key', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -548,11 +544,11 @@ export const createApiKey = async (c: Context) => {
     const mfaStatus = await mfaService.getMFAStatus(userId);
     if (mfaStatus.enabled) {
       if (!twoFactorCode) {
-        return c.json({ success: false, error: 'MFA code required' }, 400);
+        return c.json({ success: false, error: 'MFA code required' }, HttpStatusCodes.BAD_REQUEST);
       }
       const mfaResult = await mfaService.verifyMFA(userId, twoFactorCode);
       if (!mfaResult.success) {
-        return c.json({ success: false, error: 'Invalid MFA code' }, 400);
+        return c.json({ success: false, error: 'Invalid MFA code' }, HttpStatusCodes.BAD_REQUEST);
       }
     }
 
@@ -567,8 +563,7 @@ export const createApiKey = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create API key';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to create API key', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -588,8 +583,7 @@ export const deleteApiKey = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete API key';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to delete API key', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -612,11 +606,11 @@ export const deleteUserData = async (c: Context) => {
     const mfaStatus = await mfaService.getMFAStatus(userId);
     if (mfaStatus.enabled) {
       if (!twoFactorCode) {
-        return c.json({ success: false, error: 'MFA code required' }, 400);
+        return c.json({ success: false, error: 'MFA code required' }, HttpStatusCodes.BAD_REQUEST);
       }
       const mfaResult = await mfaService.verifyMFA(userId, twoFactorCode);
       if (!mfaResult.success) {
-        return c.json({ success: false, error: 'Invalid MFA code' }, 400);
+        return c.json({ success: false, error: 'Invalid MFA code' }, HttpStatusCodes.BAD_REQUEST);
       }
     }
 
@@ -630,8 +624,7 @@ export const deleteUserData = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete data';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to delete data', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -650,11 +643,11 @@ export const deleteAccount = async (c: Context) => {
     const mfaStatus = await mfaService.getMFAStatus(userId);
     if (mfaStatus.enabled) {
       if (!twoFactorCode) {
-        return c.json({ success: false, error: 'MFA code required' }, 400);
+        return c.json({ success: false, error: 'MFA code required' }, HttpStatusCodes.BAD_REQUEST);
       }
       const mfaResult = await mfaService.verifyMFA(userId, twoFactorCode);
       if (!mfaResult.success) {
-        return c.json({ success: false, error: 'Invalid MFA code' }, 400);
+        return c.json({ success: false, error: 'Invalid MFA code' }, HttpStatusCodes.BAD_REQUEST);
       }
     }
 
@@ -668,7 +661,6 @@ export const deleteAccount = async (c: Context) => {
       200,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete account';
-    return c.json({ success: false, error: message }, 400);
+    return handleRouteError(c, error, 'Failed to delete account', HttpStatusCodes.BAD_REQUEST);
   }
 };

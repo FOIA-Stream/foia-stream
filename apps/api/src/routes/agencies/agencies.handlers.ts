@@ -30,6 +30,7 @@
  */
 
 import { HttpStatusCodes } from '@/lib/constants';
+import { handleRouteError } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import { agencyService } from '@/services/agencies/agency.service';
 import type { Agency } from '@/types';
@@ -41,7 +42,6 @@ import type {
   searchAgenciesRoute,
   updateAgencyRoute,
 } from './agencies.routes';
-import { number } from "effect/Equivalence";
 
 // ============================================
 // Helper Functions
@@ -103,8 +103,7 @@ export const searchAgencies: AppRouteHandler<typeof searchAgenciesRoute> = async
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Search failed';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Search failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -147,8 +146,7 @@ export const getAgency: AppRouteHandler<typeof getAgencyRoute> = async (c) => {
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get agency';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get agency', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -169,8 +167,7 @@ export const getAgencyStats: AppRouteHandler<typeof getAgencyStatsRoute> = async
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get statistics';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get statistics', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -193,8 +190,7 @@ export const createAgency: AppRouteHandler<typeof createAgencyRoute> = async (c)
       HttpStatusCodes.CREATED,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create agency';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to create agency', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -218,9 +214,6 @@ export const updateAgency: AppRouteHandler<typeof updateAgencyRoute> = async (c)
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    // declare const test: readonly [true, false];
-    // type test2 = boolean extends (typeof test)[number] ? true : false;
-    const message = error instanceof Error ? error.message : 'Failed to update agency';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to update agency', HttpStatusCodes.BAD_REQUEST);
   }
 };

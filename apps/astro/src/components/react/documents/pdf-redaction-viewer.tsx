@@ -51,7 +51,7 @@ import {
   useState,
 } from 'react';
 
-import { API_BASE } from '../../lib/config';
+import { API_BASE } from '../../../lib/config';
 
 // ============================================
 // Types

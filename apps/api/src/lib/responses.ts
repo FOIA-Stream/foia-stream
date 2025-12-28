@@ -3,7 +3,7 @@
  *
  * @file Response Helpers
  * @module lib/responses
- * @description Standard response helpers for consistent API responses.
+ * @description Standard response schemas and helpers for consistent API responses.
  *              Reduces code duplication across route handlers.
  */
 
@@ -69,67 +69,24 @@ export function paginatedResponseSchema<T extends z.ZodTypeAny>(itemSchema: T) {
 }
 
 // ============================================
-// Response Helpers
+// Handler Helpers
 // ============================================
 
 /**
- * Send a success response with data
+ * Handle route error in catch blocks - reduces boilerplate
+ * @param c - Hono context
+ * @param error - The caught error
+ * @param fallbackMessage - Message to use if error is not an Error instance
+ * @param status - HTTP status code (default: 400)
  */
-export function successResponse<T, S extends ContentfulStatusCode = 200>(
+export function handleRouteError<S extends ContentfulStatusCode = 400>(
   c: Context,
-  data: T,
-  options?: { message?: string; status?: S },
-) {
-  const response: { success: true; data: T; message?: string } = {
-    success: true as const,
-    data,
-  };
-
-  if (options?.message) {
-    response.message = options.message;
-  }
-
-  return c.json(response, (options?.status ?? 200) as S);
-}
-
-/**
- * Send an error response
- */
-export function errorResponse<S extends ContentfulStatusCode = 400>(
-  c: Context,
-  error: string,
+  error: unknown,
+  fallbackMessage: string,
   status: S = 400 as S,
 ) {
-  return c.json({ success: false as const, error }, status);
-}
-
-/**
- * Send a message-only success response
- */
-export function messageResponse<S extends ContentfulStatusCode = 200>(
-  c: Context,
-  message: string,
-  status: S = 200 as S,
-) {
-  return c.json({ success: true as const, message }, status);
-}
-
-/**
- * Send a paginated response
- */
-export function paginatedResponse<T>(
-  c: Context,
-  data: T[],
-  pagination: { page: number; limit: number; total: number },
-) {
-  return c.json({
-    success: true,
-    data,
-    pagination: {
-      ...pagination,
-      totalPages: Math.ceil(pagination.total / pagination.limit),
-    },
-  });
+  const message = error instanceof Error ? error.message : fallbackMessage;
+  return c.json({ success: false as const, error: message }, status);
 }
 
 // ============================================
@@ -140,6 +97,28 @@ export function paginatedResponse<T>(
  * Standard OpenAPI responses for common status codes
  */
 export const commonResponses = {
+  // Success responses
+  ok: {
+    [HttpStatusCodes.OK]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'Request successful',
+    },
+  },
+  created: {
+    [HttpStatusCodes.CREATED]: {
+      content: {
+        'application/json': {
+          schema: MessageResponseSchema,
+        },
+      },
+      description: 'Resource created successfully',
+    },
+  },
+  // Error responses
   unauthorized: {
     [HttpStatusCodes.UNAUTHORIZED]: {
       content: {

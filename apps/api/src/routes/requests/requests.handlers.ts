@@ -30,6 +30,7 @@
  */
 
 import { HttpStatusCodes } from '@/lib/constants';
+import { handleRouteError } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import { foiaRequestService } from '@/services/requests/foia-request.service';
 import type {
@@ -75,8 +76,7 @@ export const searchRequests: AppRouteHandler<typeof searchRequestsRoute> = async
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Search failed';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Search failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -104,8 +104,7 @@ export const getMyRequests: AppRouteHandler<typeof getMyRequestsRoute> = async (
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get requests';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get requests', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -125,8 +124,7 @@ export const getDeadlines: AppRouteHandler<typeof getDeadlinesRoute> = async (c)
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get deadlines';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get deadlines', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -145,8 +143,12 @@ export const getOverdue: AppRouteHandler<typeof getOverdueRoute> = async (c) => 
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get overdue requests';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(
+      c,
+      error,
+      'Failed to get overdue requests',
+      HttpStatusCodes.BAD_REQUEST,
+    );
   }
 };
 
@@ -183,8 +185,7 @@ export const getRequest: AppRouteHandler<typeof getRequestRoute> = async (c) => 
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get request';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get request', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -207,8 +208,7 @@ export const createRequest: AppRouteHandler<typeof createRequestRoute> = async (
       HttpStatusCodes.CREATED,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create request';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to create request', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -231,8 +231,7 @@ export const submitRequest: AppRouteHandler<typeof submitRequestRoute> = async (
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to submit request';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to submit request', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -256,8 +255,7 @@ export const updateRequest: AppRouteHandler<typeof updateRequestRoute> = async (
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update request';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to update request', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -280,7 +278,6 @@ export const withdrawRequest: AppRouteHandler<typeof withdrawRequestRoute> = asy
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to withdraw request';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to withdraw request', HttpStatusCodes.BAD_REQUEST);
   }
 };

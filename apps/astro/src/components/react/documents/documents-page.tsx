@@ -54,7 +54,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE } from '../../lib/config';
+import { API_BASE } from '../../../lib/config';
 import PDFTextRedactor from './pdf-text-redactor';
 
 // ============================================
@@ -1280,7 +1280,7 @@ export default function DocumentsPage() {
                 setViewingDocument(null);
                 setDocumentBlob(null);
               }}
-              onRedacted={(blob,_) => {
+              onRedacted={(blob, _) => {
                 // Download the redacted PDF
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');

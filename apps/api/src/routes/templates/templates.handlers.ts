@@ -29,6 +29,7 @@
  */
 
 import { HttpStatusCodes } from '@/lib/constants';
+import { handleRouteError } from '@/lib/responses';
 import type { AppRouteHandler } from '@/lib/types';
 import { templateService } from '@/services/templates/template.service';
 import type {
@@ -72,8 +73,7 @@ export const searchTemplates: AppRouteHandler<typeof searchTemplatesRoute> = asy
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Search failed';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Search failed', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -94,8 +94,7 @@ export const getOfficialTemplates: AppRouteHandler<typeof getOfficialTemplatesRo
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get templates';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get templates', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -117,8 +116,7 @@ export const getTemplatesByCategory: AppRouteHandler<typeof getTemplatesByCatego
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get templates';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get templates', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -145,8 +143,7 @@ export const getTemplate: AppRouteHandler<typeof getTemplateRoute> = async (c) =
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get template';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to get template', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -177,8 +174,7 @@ export const createTemplate: AppRouteHandler<typeof createTemplateRoute> = async
       HttpStatusCodes.CREATED,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create template';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to create template', HttpStatusCodes.BAD_REQUEST);
   }
 };
 
@@ -197,7 +193,6 @@ export const seedTemplates: AppRouteHandler<typeof seedTemplatesRoute> = async (
       HttpStatusCodes.OK,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to seed templates';
-    return c.json({ success: false as const, error: message }, HttpStatusCodes.BAD_REQUEST);
+    return handleRouteError(c, error, 'Failed to seed templates', HttpStatusCodes.BAD_REQUEST);
   }
 };
