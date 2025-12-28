@@ -25,10 +25,6 @@
  * @module components/react/Dashboard
  */
 
-import { api, type FoiaRequest } from '@/lib/api';
-import { formatDate, getStatusColor } from '@/lib/utils';
-import { initAuth, logout, useAuthStore } from '@/stores/auth';
-import { maybeRedact, redactName, usePrivacyStore } from '@/stores/privacy';
 import {
   Building2,
   Check,
@@ -48,7 +44,12 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PrivacyToggleCompact } from './privacy-toggle';
+
+import { api, type FoiaRequest } from '@/lib/api';
+import { formatDate, getStatusColor } from '@/lib/utils';
+import { initAuth, logout, useAuthStore } from '@/stores/auth';
+import { maybeRedact, redactName, usePrivacyStore } from '@/stores/privacy';
+import { PrivacyToggleCompact } from '../common/privacy-toggle';
 
 /**
  * Main dashboard component showing request statistics and list

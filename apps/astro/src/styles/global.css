@@ -322,17 +322,28 @@ textarea::placeholder {
    SCROLL ANIMATION SYSTEM
    ================================= */
 
-/* Base reveal state - hidden until in view */
+/* Base reveal state - hidden initially, with fallback visibility */
 [data-reveal] {
   opacity: 0;
   transition:
     opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Fallback: ensure elements become visible after 2s even if JS fails */
+  animation: reveal-fallback 0.001s 2s forwards;
+}
+
+@keyframes reveal-fallback {
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
 }
 
 [data-reveal].revealed {
   opacity: 1;
   transform: translate(0, 0) scale(1);
+  animation: none; /* Cancel fallback when JS works */
 }
 
 /* Reveal from bottom */

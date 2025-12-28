@@ -27,7 +27,7 @@
 
 import { ArrowRight, Check, ChevronLeft, FileText, Search, Send, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { $user, useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/auth';
 
 /**
  * Onboarding step configuration

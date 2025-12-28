@@ -25,8 +25,6 @@
  * @module components/react/Settings
  */
 
-import { api, type User as UserType } from '@/lib/api';
-import { initAuth, refreshUser, useAuthStore } from '@/stores/auth';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -50,7 +48,10 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { PrivacyToggleCompact } from './privacy-toggle';
+
+import { api, type User as UserType } from '@/lib/api';
+import { initAuth, refreshUser, useAuthStore } from '@/stores/auth';
+import { PrivacyToggleCompact } from '../common/privacy-toggle';
 
 type TabId = 'profile' | 'security' | 'preferences' | 'api' | 'danger';
 

@@ -26,10 +26,6 @@
  * @author FOIA Stream Team
  */
 
-import type { FoiaRequest } from '@/lib/api';
-import { API_BASE } from '@/lib/config';
-import { formatDate, getStatusColor } from '@/lib/utils';
-import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import {
   Building2,
   ChevronDown,
@@ -43,7 +39,12 @@ import {
   User,
 } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { useDataLoader } from './effect-data-loader';
+
+import type { FoiaRequest } from '@/lib/api';
+import { API_BASE } from '@/lib/config';
+import { formatDate, getStatusColor } from '@/lib/utils';
+import { initAuth, logout, useAuthStore } from '@/stores/auth';
+import { useDataLoader } from '../common/effect-data-loader';
 
 interface RequestsResponse {
   data: FoiaRequest[];
@@ -64,7 +65,7 @@ function RequestsList({ onRefetch }: { onRefetch?: (refetch: () => Promise<void>
     refetchOnWindowFocus: false,
   });
 
-  const requests = data?.data || [];
+  const requests: FoiaRequest[] = data?.data || [];
 
   useEffect(() => {
     if (onRefetch) {
@@ -129,12 +130,13 @@ function DashboardStats() {
     refetchOnWindowFocus: false,
   });
 
-  const requests = data?.data || [];
+  const requests: FoiaRequest[] = data?.data || [];
 
   const pendingCount = requests.filter(
-    (r) => r.status === 'submitted' || r.status === 'processing' || r.status === 'acknowledged',
+    (r: FoiaRequest) =>
+      r.status === 'submitted' || r.status === 'processing' || r.status === 'acknowledged',
   ).length;
-  const completedCount = requests.filter((r) =>
+  const completedCount = requests.filter((r: FoiaRequest) =>
     [
       'fulfilled',
       'partially_fulfilled',
@@ -144,7 +146,7 @@ function DashboardStats() {
       'withdrawn',
     ].includes(r.status),
   ).length;
-  const uniqueAgencies = new Set(requests.map((r) => r.agencyId)).size;
+  const uniqueAgencies = new Set(requests.map((r: FoiaRequest) => r.agencyId)).size;
 
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">

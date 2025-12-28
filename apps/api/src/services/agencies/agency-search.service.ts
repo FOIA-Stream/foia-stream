@@ -29,8 +29,6 @@
  * @compliance NIST 800-53 SI-10 (Information Input Validation)
  */
 
-import { db, schema } from '@/db';
-import type { Agency } from '@/types';
 import {
   createAgencyHierarchy,
   createAgencyTrie,
@@ -40,6 +38,9 @@ import {
   type TrieSearchResult,
 } from '@foia-stream/shared';
 import { Schema as S } from 'effect';
+
+import { db, schema } from '@/db';
+import type { Agency } from '@/types';
 
 // ============================================
 // Types

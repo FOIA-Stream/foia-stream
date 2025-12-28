@@ -43,7 +43,6 @@ import {
   Lock,
   RefreshCw,
   Share2,
-  User,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
