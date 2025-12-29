@@ -1,0 +1,57 @@
+---
+/**
+ * Copyright (c) 2025 Foia Stream
+ *
+ * Offline fallback page for PWA
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Offline" description="You are currently offline">
+  <main class="flex min-h-screen flex-col items-center justify-center px-4 text-center">
+    <div class="max-w-md space-y-6">
+      <!-- Offline Icon -->
+      <div class="mx-auto w-24 h-24 rounded-full bg-surface-800 flex items-center justify-center">
+        <svg class="w-12 h-12 text-surface-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+          <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+      </div>
+
+      <h1 class="text-3xl font-bold text-surface-100">You're Offline</h1>
+
+      <p class="text-surface-400">
+        It looks like you've lost your internet connection. Some features may not be available until you're back online.
+      </p>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <button
+          onclick="window.location.reload()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-6 py-3 font-medium text-white transition-colors hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-surface-900"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Try Again
+        </button>
+
+        <a
+          href="/"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-surface-600 bg-surface-800 px-6 py-3 font-medium text-surface-100 transition-colors hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-surface-900"
+        >
+          Go Home
+        </a>
+      </div>
+
+      <p class="text-sm text-surface-500">
+        Cached pages may still be accessible.
+      </p>
+    </div>
+  </main>
+</BaseLayout>

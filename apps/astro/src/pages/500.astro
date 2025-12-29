@@ -1,0 +1,65 @@
+---
+/**
+ * Copyright (c) 2025 Foia Stream
+ *
+ * 500 Internal Server Error Page
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Server Error" description="Something went wrong on our end">
+  <main class="flex min-h-screen flex-col items-center justify-center px-4 text-center">
+    <div class="max-w-md space-y-6">
+      <!-- Error Icon -->
+      <div class="mx-auto w-24 h-24 rounded-full bg-surface-800 flex items-center justify-center">
+        <svg class="w-12 h-12 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-6xl font-bold text-red-500">500</p>
+        <h1 class="text-2xl font-bold text-surface-100">Server Error</h1>
+      </div>
+
+      <p class="text-surface-400">
+        Something went wrong on our end. We've been notified and are working to fix the issue. Please try again in a few moments.
+      </p>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <button
+          onclick="window.location.reload()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-6 py-3 font-medium text-white transition-colors hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-surface-900"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Try Again
+        </button>
+
+        <a
+          href="/"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-surface-600 bg-surface-800 px-6 py-3 font-medium text-surface-100 transition-colors hover:bg-surface-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-surface-900"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          Go Home
+        </a>
+      </div>
+
+      <div class="pt-6 border-t border-surface-800">
+        <p class="text-sm text-surface-500">
+          If this problem persists, please contact support or try again later.
+        </p>
+        <p class="mt-2 text-xs text-surface-600">
+          Error ID: <code class="font-mono bg-surface-800 px-1 py-0.5 rounded">{Date.now().toString(36)}</code>
+        </p>
+      </div>
+    </div>
+  </main>
+</BaseLayout>
