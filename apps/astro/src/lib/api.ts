@@ -508,7 +508,6 @@ async function runEffect<T, I = T>(
 
   if (result._tag === 'Success') {
     const response = result.value as Record<string, unknown>;
-    console.log('[API] runEffect success:', response);
 
     // Handle standard API envelope
     if (response && typeof response === 'object' && 'success' in response) {
@@ -593,6 +592,7 @@ class ApiClient {
   /**
    * Register a new user account
    * @compliance NIST 800-53 IA-2 (Identification and Authentication)
+   * @compliance GDPR Article 7 (Conditions for consent)
    */
   async register(data: {
     email: string;
@@ -600,6 +600,14 @@ class ApiClient {
     firstName: string;
     lastName: string;
     organization?: string;
+    role?: string;
+    isAnonymous?: boolean;
+    consents?: {
+      termsAccepted: boolean;
+      privacyAccepted: boolean;
+      dataProcessingAccepted: boolean;
+      consentTimestamp: string;
+    };
   }): Promise<ApiResponse<AuthResponse>> {
     return runEffect(post<AuthResponse>(`${this.baseUrl}/auth/register`, data), AuthResponseSchema);
   }
@@ -714,6 +722,38 @@ class ApiClient {
     return runEffect(
       post<FoiaRequest>(`${this.baseUrl}/requests`, data, { headers: getAuthHeaders() }),
       FoiaRequestSchema,
+    );
+  }
+
+  /**
+   * Create multiple FOIA requests for different agencies (bulk filing)
+   * @compliance NIST 800-53 AU-3 (Content of Audit Records)
+   */
+  async createBulkRequests(data: {
+    agencyIds: string[];
+    category: string;
+    title: string;
+    description: string;
+    dateRangeStart?: string;
+    dateRangeEnd?: string;
+    templateId?: string;
+    isPublic?: boolean;
+  }): Promise<ApiResponse<{ createdRequests: readonly FoiaRequest[]; totalCreated: number }>> {
+    // Schema for bulk response - validates the array of created requests
+    const BulkRequestsResponseSchema = S.mutable(
+      S.Struct({
+        createdRequests: S.Array(FoiaRequestSchema),
+        totalCreated: S.Number,
+      }),
+    );
+
+    return runEffect(
+      post<{ createdRequests: readonly FoiaRequest[]; totalCreated: number }>(
+        `${this.baseUrl}/requests/bulk`,
+        data,
+        { headers: getAuthHeaders() },
+      ),
+      BulkRequestsResponseSchema,
     );
   }
 
@@ -1128,6 +1168,92 @@ class ApiClient {
   }
 
   /**
+   * Upload a document with optional security settings
+   * @compliance NIST 800-53 SI-3 (Malicious Code Protection)
+   */
+  async uploadDocument(
+    file: File,
+    options?: {
+      requiresMfa?: boolean;
+      accessPassword?: string;
+      expiresInDays?: number;
+    },
+  ): Promise<ApiResponse<SecureDocument>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      if (options && Object.keys(options).length > 0) {
+        formData.append('options', JSON.stringify(options));
+      }
+
+      const response = await fetch(`${this.baseUrl}/documents/upload`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: formData,
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        return { success: false, error: json.error || 'Upload failed' };
+      }
+
+      return { success: true, data: json.data };
+    } catch (_error) {
+      return { success: false, error: 'Network error uploading document' };
+    }
+  }
+
+  /**
+   * Download a document as a Blob
+   * @compliance NIST 800-53 AU-3 (Content of Audit Records)
+   */
+  async downloadDocument(
+    id: string,
+    accessToken?: string,
+  ): Promise<ApiResponse<{ blob: Blob; requiresMfa?: boolean; requiresPassword?: boolean }>> {
+    try {
+      const url = new URL(`${this.baseUrl}/documents/${id}/download`);
+      if (accessToken) {
+        url.searchParams.set('accessToken', accessToken);
+      }
+
+      const response = await fetch(url.toString(), {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const json = await response.json();
+          if (json.requiresMfa) {
+            return {
+              success: false,
+              error: 'MFA required',
+              data: { blob: new Blob(), requiresMfa: true },
+            };
+          }
+          if (json.requiresPassword) {
+            return {
+              success: false,
+              error: 'Password required',
+              data: { blob: new Blob(), requiresPassword: true },
+            };
+          }
+          return { success: false, error: json.error || 'Download failed' };
+        }
+        return { success: false, error: 'Download failed' };
+      }
+
+      const blob = await response.blob();
+      return { success: true, data: { blob } };
+    } catch (_error) {
+      return { success: false, error: 'Network error downloading document' };
+    }
+  }
+
+  /**
    * Get a single document by ID
    */
   async getDocument(id: string): Promise<ApiResponse<SecureDocument>> {
@@ -1244,6 +1370,124 @@ class ApiClient {
       }),
       S.mutable(S.Array(DocumentAccessLogSchema)),
     );
+  }
+
+  // ============================================
+  // PDF Redaction (Binary Operations)
+  // ============================================
+
+  /**
+   * Get PDF document info (page dimensions, etc.)
+   * @compliance NIST 800-53 SI-12 (Information Handling and Retention)
+   */
+  async getPdfInfo(
+    file: File | Blob,
+    authToken?: string,
+  ): Promise<ApiResponse<{ pages: Array<{ width: number; height: number }> }>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${this.baseUrl}/redaction/info`, {
+        method: 'POST',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : getAuthHeaders(),
+        body: formData,
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        return { success: false, error: json.error || 'Failed to get PDF info' };
+      }
+
+      return { success: true, data: json.data };
+    } catch (_error) {
+      return { success: false, error: 'Network error getting PDF info' };
+    }
+  }
+
+  /**
+   * Generate a preview of PDF redactions
+   * @compliance NIST 800-53 MP-6 (Media Sanitization)
+   */
+  async getPdfRedactionPreview(
+    file: File | Blob,
+    areas: Array<{
+      id: string;
+      page: number;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      reason?: string;
+    }>,
+    authToken?: string,
+  ): Promise<ApiResponse<{ blob: Blob }>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('data', JSON.stringify({ areas }));
+
+      const response = await fetch(`${this.baseUrl}/redaction/preview`, {
+        method: 'POST',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : getAuthHeaders(),
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, error: errorData.error || 'Failed to generate preview' };
+      }
+
+      const blob = await response.blob();
+      return { success: true, data: { blob } };
+    } catch (_error) {
+      return { success: false, error: 'Network error generating preview' };
+    }
+  }
+
+  /**
+   * Apply permanent redactions to a PDF
+   * @compliance NIST 800-53 MP-6 (Media Sanitization)
+   */
+  async applyPdfRedactions(
+    file: File | Blob,
+    areas: Array<{
+      id: string;
+      page: number;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      reason?: string;
+    }>,
+    options?: {
+      addRedactionLabel?: boolean;
+      labelText?: string;
+    },
+    authToken?: string,
+  ): Promise<ApiResponse<{ blob: Blob }>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('data', JSON.stringify({ areas, options }));
+
+      const response = await fetch(`${this.baseUrl}/redaction/apply`, {
+        method: 'POST',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : getAuthHeaders(),
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, error: errorData.error || 'Failed to apply redactions' };
+      }
+
+      const blob = await response.blob();
+      return { success: true, data: { blob } };
+    } catch (_error) {
+      return { success: false, error: 'Network error applying redactions' };
+    }
   }
 }
 

@@ -65,7 +65,7 @@ const mapUserResponse = (user: Omit<User, 'passwordHash'>) => ({
  * Handler for POST /auth/register
  *
  * @param {Context} c - Hono context with validated request body
- * @returns {Promise<Response>} JSON response with created user or error
+ * @returns {Promise<Response>} JSON response with created user and token or error
  * @compliance NIST 800-53 AC-2 (Account Management)
  * @compliance GDPR Article 7 (Conditions for consent)
  */
@@ -89,10 +89,11 @@ export const register = async (c: Context) => {
       consents?: ConsentData;
     };
 
-    const { consents, ...userData } = data;
+    const { consents, password, ...userData } = data;
     // Ensure role has a default value
     const userDataWithDefaults = {
       ...userData,
+      password,
       role: userData.role || ('civilian' as const),
     };
     const user = await authService.createUser(userDataWithDefaults);
@@ -105,10 +106,23 @@ export const register = async (c: Context) => {
       await consentService.recordRegistrationConsent(user.id, consents, ipAddress, userAgent);
     }
 
+    // Auto-login the user after registration
+    const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip');
+    const userAgent = c.req.header('user-agent');
+    const loginResult = await authService.login(data.email, data.password, {
+      ipAddress,
+      userAgent,
+    });
+
     return c.json(
       {
         success: true,
-        data: mapUserResponse(user),
+        data: {
+          token: loginResult.token,
+          user: mapUserResponse(user),
+          requiresMFA: loginResult.requiresMFA,
+          mfaToken: loginResult.mfaToken,
+        },
         message: 'Account created successfully',
       },
       201,

@@ -485,6 +485,98 @@ export const createRequestRoute = createRoute({
 });
 
 /**
+ * Bulk create request schema - for sending to multiple agencies
+ */
+const BulkCreateRequestSchema = z
+  .object({
+    agencyIds: z
+      .array(z.string())
+      .min(1, 'At least one agency is required')
+      .max(20, 'Maximum 20 agencies per bulk request')
+      .openapi({ example: ['agency-123', 'agency-456'] }),
+    category: RecordCategorySchema.openapi({ example: 'body_cam_footage' }),
+    title: z
+      .string()
+      .min(1)
+      .max(200)
+      .openapi({ example: 'Body camera footage from incident on Main St' }),
+    description: z.string().min(1).openapi({
+      example:
+        'Requesting all body camera footage from officers responding to incident #12345 on January 15, 2024',
+    }),
+    dateRangeStart: z.string().optional().openapi({ example: '2024-01-15' }),
+    dateRangeEnd: z.string().optional().openapi({ example: '2024-01-15' }),
+    templateId: z.string().optional(),
+    isPublic: z.boolean().default(false).openapi({ example: true }),
+  })
+  .openapi('BulkCreateRequest');
+
+/**
+ * Bulk create FOIA requests
+ */
+export const createBulkRequestRoute = createRoute({
+  tags: ['Requests'],
+  method: 'post',
+  path: '/requests/bulk',
+  summary: 'Bulk create FOIA requests',
+  description:
+    'Create multiple FOIA requests for different agencies with the same content. Useful for sending the same request to multiple agencies simultaneously.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      required: true,
+      description: 'Bulk FOIA request data with multiple agency IDs',
+      content: {
+        'application/json': {
+          schema: BulkCreateRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    [HttpStatusCodes.CREATED]: {
+      description: 'Requests created successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({
+              createdRequests: z.array(FOIARequestSchema),
+              totalCreated: z.number(),
+            }),
+            message: z.string().openapi({ type: 'string' }),
+          }),
+        },
+      },
+    },
+    [HttpStatusCodes.BAD_REQUEST]: {
+      description: 'Creation error',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    [HttpStatusCodes.UNAUTHORIZED]: {
+      description: 'Not authenticated',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: {
+      description: 'Validation error',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+/**
  * Submit a draft request
  */
 export const submitRequestRoute = createRoute({
@@ -650,6 +742,7 @@ export const withdrawRequestRoute = createRoute({
 
 // Export schemas
 export {
+  BulkCreateRequestSchema,
   CreateRequestSchema,
   FOIARequestSchema,
   FOIARequestWithAgencySchema,

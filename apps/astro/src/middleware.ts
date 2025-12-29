@@ -31,12 +31,12 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Content-Security-Policy': [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
-    "style-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
+    "style-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://fonts.googleapis.com",
     "img-src 'self' data: blob: https: http:",
-    "font-src 'self' data:",
-    "connect-src 'self'",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' http://localhost:3000 ws://localhost:3000",
     "worker-src 'self' blob:",
-    "child-src blob:",
+    'child-src blob:',
   ].join('; '),
 };
 

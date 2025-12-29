@@ -105,8 +105,8 @@ describe('Authentication', () => {
       cy.get('input[name="lastName"]').should('not.be.disabled').type('User');
       cy.get('input[name="email"]').should('not.be.disabled').type('newuser@example.com');
       cy.get('input[name="organization"]').should('not.be.disabled').type('New Org');
-      cy.get('input[name="password"]').should('not.be.disabled').type('password123');
-      cy.get('input[name="confirmPassword"]').should('not.be.disabled').type('password123');
+      cy.get('input[name="password"]').should('not.be.disabled').type('Password123');
+      cy.get('input[name="confirmPassword"]').should('not.be.disabled').type('Password123');
 
       // Handle Terms of Service
       cy.contains('button', 'Read & Accept').first().click(); // Opens Terms modal

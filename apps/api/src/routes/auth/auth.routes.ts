@@ -60,7 +60,8 @@ export const ConsentDataSchema = z
     termsAccepted: z.boolean().openapi({ example: true }),
     privacyAccepted: z.boolean().openapi({ example: true }),
     dataProcessingAccepted: z.boolean().openapi({ example: true }),
-    consentTimestamp: z.string().datetime().openapi({ example: '2024-12-25T00:00:00.000Z' }),
+    // Accept any ISO string format from frontend
+    consentTimestamp: z.string().openapi({ example: '2024-12-25T00:00:00.000Z' }),
   })
   .openapi('ConsentData');
 
@@ -329,10 +330,10 @@ export const registerRoute = createRoute({
     [HttpStatusCodes.CREATED]: {
       content: {
         'application/json': {
-          schema: successResponse(UserResponseSchema, 'Account created successfully'),
+          schema: successResponse(LoginResponseSchema, 'Account created successfully'),
         },
       },
-      description: 'User created successfully',
+      description: 'User created and logged in successfully',
     },
     [HttpStatusCodes.BAD_REQUEST]: {
       content: {

@@ -157,24 +157,32 @@ async function cacheFirst(request) {
 async function staleWhileRevalidate(request) {
   const cachedResponse = await caches.match(request);
 
-  const networkPromise = fetch(request)
-    .then((networkResponse) => {
+  const fetchAndCache = async () => {
+    try {
+      const networkResponse = await fetch(request);
       if (networkResponse.ok) {
-        const cache = caches.open(DYNAMIC_CACHE);
-        cache.then((c) => c.put(request, networkResponse.clone()));
+        const cache = await caches.open(DYNAMIC_CACHE);
+        // Clone before putting in cache since we might return it
+        cache.put(request, networkResponse.clone());
       }
       return networkResponse;
-    })
-    .catch(() => {
+    } catch {
       // Network failed, return cached or offline page
       if (request.mode === 'navigate') {
         return caches.match('/offline');
       }
       return null;
-    });
+    }
+  };
 
-  // Return cached response immediately, or wait for network
-  return cachedResponse || networkPromise;
+  if (cachedResponse) {
+    // Return cached immediately, update cache in background
+    fetchAndCache();
+    return cachedResponse;
+  }
+
+  // No cache, wait for network
+  return fetchAndCache();
 }
 
 // Handle push notifications (future feature)

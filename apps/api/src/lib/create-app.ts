@@ -50,7 +50,14 @@ import type { AppBindings, AppOpenAPI } from './types';
 export function createRouter(): OpenAPIHono<AppBindings> {
   return new OpenAPIHono<AppBindings>({
     strict: false,
-    defaultHook,
+    defaultHook: (result, c) => {
+      // Custom hook: log validation errors in development
+      if (!result.success) {
+        console.error('[API Validation Error]', JSON.stringify(result.error.issues, null, 2));
+      }
+      // Call the original defaultHook behavior
+      return defaultHook(result, c);
+    },
   });
 }
 

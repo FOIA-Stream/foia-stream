@@ -21,13 +21,17 @@
  */
 
 /**
- * @file Registration form component for new user accounts
+ * @file Registration form component for new user account creation
  * @module components/react/RegisterForm
+ * @description Uses TanStack Form for form state management and Zod for validation
  */
 
+import { useForm } from '@tanstack/react-form';
 import { Check, ChevronDown, FileText, Loader2, Shield, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+import { getFieldError, getInputClass, labelClass, registerSchema } from '@/lib/form-utils';
 import { register, useAuthStore } from '@/stores/auth';
 
 /**
@@ -65,8 +69,8 @@ function DocumentViewerModal({ type, onClose, onAccept }: DocumentViewerModalPro
 
     setScrollProgress(Math.min(progress, 100));
 
-    // Consider "scrolled to bottom" when within 20px of the end
-    if (scrollTop + clientHeight >= scrollHeight - 20) {
+    // Consider "scrolled to bottom" when within 50px of the end
+    if (scrollTop + clientHeight >= scrollHeight - 50) {
       setHasScrolledToBottom(true);
     }
   }, []);
@@ -441,34 +445,73 @@ function PrivacyContent() {
 
 /**
  * Registration form component that handles new user account creation
+ * Uses TanStack Form for state management and Zod for validation
  *
  * @component
  * @returns {React.JSX.Element | null} Registration form or null during redirect
- *
- * @example
- * ```tsx
- * <RegisterForm />
- * ```
  */
 export default function RegisterForm() {
   const isAuth = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    organization: '',
-  });
+
+  // Consent state (separate from form - tied to modal acceptance)
   const [consents, setConsents] = useState({
     termsAccepted: false,
     privacyAccepted: false,
     dataProcessingAccepted: false,
   });
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<DocumentType>(null);
+
+  // TanStack Form with Zod validation
+  const form = useForm({
+    defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      organization: '',
+    },
+    validators: {
+      onChange: registerSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setError('');
+
+      // Validate consents before submission
+      if (
+        !consents.termsAccepted ||
+        !consents.privacyAccepted ||
+        !consents.dataProcessingAccepted
+      ) {
+        setError('You must accept all agreements to create an account');
+        return;
+      }
+
+      const result = await register({
+        email: value.email,
+        password: value.password,
+        firstName: value.firstName,
+        lastName: value.lastName,
+        organization: value.organization || undefined,
+        role: 'civilian',
+        isAnonymous: false,
+        consents: {
+          termsAccepted: consents.termsAccepted,
+          privacyAccepted: consents.privacyAccepted,
+          dataProcessingAccepted: consents.dataProcessingAccepted,
+          consentTimestamp: new Date().toISOString(),
+        },
+      });
+
+      if (result.success) {
+        window.location.href = '/dashboard';
+      } else {
+        setError(result.error || 'Registration failed');
+      }
+    },
+  });
 
   /**
    * Handle accepting a document after scrolling through it
@@ -479,6 +522,16 @@ export default function RegisterForm() {
       [type === 'terms' ? 'termsAccepted' : 'privacyAccepted']: true,
     }));
     setViewingDocument(null);
+  };
+
+  /**
+   * Handles consent checkbox changes
+   */
+  const handleConsentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConsents((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.checked,
+    }));
   };
 
   if (!authLoading && isAuth) {
@@ -494,80 +547,18 @@ export default function RegisterForm() {
     );
   }
 
-  /**
-   * Handles input field changes
-   * @param {React.ChangeEvent<HTMLInputElement>} e - Input change event
-   */
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  /**
-   * Handles consent checkbox changes
-   * @param {React.ChangeEvent<HTMLInputElement>} e - Checkbox change event
-   */
-  const handleConsentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setConsents((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.checked,
-    }));
-  };
-
-  /**
-   * Handles form submission for registration
-   * @param {React.FormEvent} e - Form event
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-
-    if (!consents.termsAccepted || !consents.privacyAccepted || !consents.dataProcessingAccepted) {
-      setError('You must accept all agreements to create an account');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const result = await register({
-      email: formData.email,
-      password: formData.password,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      organization: formData.organization || undefined,
-      consents: {
-        termsAccepted: consents.termsAccepted,
-        privacyAccepted: consents.privacyAccepted,
-        dataProcessingAccepted: consents.dataProcessingAccepted,
-        consentTimestamp: new Date().toISOString(),
-      },
-    });
-
-    if (result.success) {
-      window.location.href = '/dashboard';
-    } else {
-      setError(result.error || 'Registration failed');
-      setIsSubmitting(false);
-    }
-  };
-
-  const inputClass =
-    'mt-2 block w-full rounded-lg border border-surface-700 bg-surface-800 px-4 py-3 text-surface-100 placeholder-surface-500 transition-colors focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500';
+  const allConsentsAccepted =
+    consents.termsAccepted && consents.privacyAccepted && consents.dataProcessingAccepted;
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form
+      className="space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        form.handleSubmit();
+      }}
+    >
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
@@ -575,108 +566,155 @@ export default function RegisterForm() {
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-surface-300">
-            First name
-          </label>
-          <input
-            id="firstName"
-            name="firstName"
-            type="text"
-            autoComplete="given-name"
-            required
-            value={formData.firstName}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="John"
-          />
-        </div>
+        <form.Field name="firstName">
+          {(field) => (
+            <div>
+              <label htmlFor="firstName" className={labelClass}>
+                First name
+              </label>
+              <input
+                id="firstName"
+                name="firstName"
+                type="text"
+                autoComplete="given-name"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                className={getInputClass(field)}
+                placeholder="John"
+                required
+              />
+              {getFieldError(field) && (
+                <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+              )}
+            </div>
+          )}
+        </form.Field>
 
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-surface-300">
-            Last name
-          </label>
-          <input
-            id="lastName"
-            name="lastName"
-            type="text"
-            autoComplete="family-name"
-            required
-            value={formData.lastName}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="Doe"
-          />
-        </div>
+        <form.Field name="lastName">
+          {(field) => (
+            <div>
+              <label htmlFor="lastName" className={labelClass}>
+                Last name
+              </label>
+              <input
+                id="lastName"
+                name="lastName"
+                type="text"
+                autoComplete="family-name"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                className={getInputClass(field)}
+                placeholder="Doe"
+                required
+              />
+              {getFieldError(field) && (
+                <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+              )}
+            </div>
+          )}
+        </form.Field>
       </div>
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-surface-300">
-          Email address
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={formData.email}
-          onChange={handleChange}
-          className={inputClass}
-          placeholder="you@example.com"
-        />
-      </div>
+      <form.Field name="email">
+        {(field) => (
+          <div>
+            <label htmlFor="email" className={labelClass}>
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              className={getInputClass(field)}
+              placeholder="you@example.com"
+              required
+            />
+            {getFieldError(field) && (
+              <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+            )}
+          </div>
+        )}
+      </form.Field>
 
-      <div>
-        <label htmlFor="organization" className="block text-sm font-medium text-surface-300">
-          Organization <span className="text-surface-500">(optional)</span>
-        </label>
-        <input
-          id="organization"
-          name="organization"
-          type="text"
-          autoComplete="organization"
-          value={formData.organization}
-          onChange={handleChange}
-          className={inputClass}
-          placeholder="News Organization"
-        />
-      </div>
+      <form.Field name="organization">
+        {(field) => (
+          <div>
+            <label htmlFor="organization" className={labelClass}>
+              Organization <span className="text-surface-500">(optional)</span>
+            </label>
+            <input
+              id="organization"
+              name="organization"
+              type="text"
+              autoComplete="organization"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              className={getInputClass(field)}
+              placeholder="News Organization"
+            />
+          </div>
+        )}
+      </form.Field>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-surface-300">
-          Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          value={formData.password}
-          onChange={handleChange}
-          className={inputClass}
-          placeholder="••••••••"
-        />
-        <p className="mt-1 text-xs text-surface-500">Must be at least 8 characters</p>
-      </div>
+      <form.Field name="password">
+        {(field) => (
+          <div>
+            <label htmlFor="password" className={labelClass}>
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              className={getInputClass(field)}
+              placeholder="••••••••"
+              required
+            />
+            <p className="mt-1 text-xs text-surface-500">
+              Min 8 chars, uppercase, lowercase, and number required
+            </p>
+            {getFieldError(field) && (
+              <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+            )}
+          </div>
+        )}
+      </form.Field>
 
-      <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-surface-300">
-          Confirm password
-        </label>
-        <input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          autoComplete="new-password"
-          required
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          className={inputClass}
-          placeholder="••••••••"
-        />
-      </div>
+      <form.Field name="confirmPassword">
+        {(field) => (
+          <div>
+            <label htmlFor="confirmPassword" className={labelClass}>
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              className={getInputClass(field)}
+              placeholder="••••••••"
+              required
+            />
+            {getFieldError(field) && (
+              <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+            )}
+          </div>
+        )}
+      </form.Field>
 
       {/* Document Viewer Modal */}
       {viewingDocument && (
@@ -805,25 +843,24 @@ export default function RegisterForm() {
         </p>
       </div>
 
-      <button
-        type="submit"
-        disabled={
-          isSubmitting ||
-          !consents.termsAccepted ||
-          !consents.privacyAccepted ||
-          !consents.dataProcessingAccepted
-        }
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-3 text-sm font-semibold text-surface-950 transition-all hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Creating account...
-          </>
-        ) : (
-          'Create account'
+      <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+        {([canSubmit, isSubmitting]) => (
+          <button
+            type="submit"
+            disabled={!canSubmit || isSubmitting || !allConsentsAccepted}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-3 text-sm font-semibold text-surface-950 transition-all hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              'Create account'
+            )}
+          </button>
         )}
-      </button>
+      </form.Subscribe>
     </form>
   );
 }

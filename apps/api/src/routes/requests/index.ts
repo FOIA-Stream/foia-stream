@@ -60,6 +60,10 @@ router.openapi(routes.getDeadlinesRoute, handlers.getDeadlines);
 router.get('/requests/overdue', authMiddleware);
 router.openapi(routes.getOverdueRoute, handlers.getOverdue);
 
+// Bulk create requests - must be before /requests/:id
+router.post('/requests/bulk', authMiddleware);
+router.openapi(routes.createBulkRequestRoute, handlers.createBulkRequests);
+
 // ============================================
 // Optional Auth Route (GET /requests/:id)
 // Must be after specific routes like /requests/my

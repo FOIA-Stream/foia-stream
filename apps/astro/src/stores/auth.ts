@@ -238,6 +238,8 @@ export async function register(data: {
   firstName: string;
   lastName: string;
   organization?: string;
+  role?: string;
+  isAnonymous?: boolean;
   consents?: ConsentData;
 }) {
   const { setToken, setUser } = useAuthStore.getState();

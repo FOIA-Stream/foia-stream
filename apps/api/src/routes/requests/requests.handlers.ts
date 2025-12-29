@@ -213,6 +213,46 @@ export const createRequest: AppRouteHandler<typeof createRequestRoute> = async (
 };
 
 /**
+ * Bulk create FOIA requests handler
+ * Creates multiple requests for different agencies with the same content
+ */
+export const createBulkRequests: AppRouteHandler<typeof createBulkRequestRoute> = async (c) => {
+  try {
+    const { userId } = c.get('user');
+    const { agencyIds, ...requestData } = c.req.valid('json');
+
+    // Create requests for each agency
+    const createdRequests = await Promise.all(
+      agencyIds.map((agencyId: string) =>
+        foiaRequestService.createRequest(userId, {
+          agencyId,
+          ...requestData,
+        }),
+      ),
+    );
+
+    return c.json(
+      {
+        success: true as const,
+        data: {
+          createdRequests,
+          totalCreated: createdRequests.length,
+        },
+        message: `Successfully created ${createdRequests.length} request${createdRequests.length > 1 ? 's' : ''}`,
+      },
+      HttpStatusCodes.CREATED,
+    );
+  } catch (error) {
+    return handleRouteError(
+      c,
+      error,
+      'Failed to create bulk requests',
+      HttpStatusCodes.BAD_REQUEST,
+    );
+  }
+};
+
+/**
  * Submit a draft request handler
  */
 export const submitRequest: AppRouteHandler<typeof submitRequestRoute> = async (c) => {

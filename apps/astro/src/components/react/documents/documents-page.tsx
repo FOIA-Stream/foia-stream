@@ -30,6 +30,8 @@
  * @compliance NIST 800-53 MP-6 (Media Sanitization)
  */
 
+import { api, type SecureDocument } from '@/lib/api';
+import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import {
   AlertTriangle,
   ChevronDown,
@@ -53,34 +55,14 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { initAuth, logout, useAuthStore } from '@/stores/auth';
-import { API_BASE } from '../../../lib/config';
 import PDFTextRedactor from './pdf-text-redactor';
 
 // ============================================
 // Types
 // ============================================
 
-interface Document {
-  id: string;
-  originalFileName: string;
-  fileSize: number;
-  mimeType: string;
-  status:
-    | 'pending_scan'
-    | 'scanning'
-    | 'clean'
-    | 'infected'
-    | 'scan_failed'
-    | 'redacted'
-    | 'archived';
-  requiresMfa: boolean;
-  hasPassword: boolean;
-  expiresAt: string | null;
-  accessCount: number;
-  lastAccessedAt: string | null;
-  createdAt: string;
-}
+// Use SecureDocument from api.ts instead of local definition
+type Document = SecureDocument;
 
 interface RedactionTemplate {
   id: string;
@@ -222,54 +204,38 @@ export default function DocumentsPage() {
   const [redacting, setRedacting] = useState(false);
 
   // ============================================
-  // API Helpers
+  // API Calls
   // ============================================
-
-  const getAuthHeaders = useCallback((): Record<string, string> => {
-    const token = localStorage.getItem('auth_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }, []);
 
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/documents`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await api.getDocuments();
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch documents');
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setDocuments(result.data);
+      if (response.success && response.data) {
+        setDocuments(response.data);
       } else {
-        throw new Error(result.error || 'Failed to fetch documents');
+        throw new Error(response.error || 'Failed to fetch documents');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documents');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   const fetchTemplates = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/documents/templates/redaction`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await api.getRedactionTemplates();
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setTemplates(result.data.system || []);
-        }
+      if (response.success && response.data) {
+        // Cast API response to local template interface
+        setTemplates((response.data.system || []) as unknown as RedactionTemplate[]);
       }
     } catch {
       // Templates are optional
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   // ============================================
   // Effects
@@ -318,36 +284,22 @@ export default function DocumentsPage() {
       setUploadProgress(0);
 
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const options: Record<string, unknown> = {};
-        if (uploadOptions.requiresMfa) options.requiresMfa = true;
-        if (uploadOptions.accessPassword) options.accessPassword = uploadOptions.accessPassword;
-        if (uploadOptions.expiresInDays) options.expiresInDays = uploadOptions.expiresInDays;
-
-        if (Object.keys(options).length > 0) {
-          formData.append('options', JSON.stringify(options));
-        }
-
         // Simulate progress for UX
         const progressInterval = setInterval(() => {
           setUploadProgress((prev) => Math.min(prev + 10, 90));
         }, 200);
 
-        const response = await fetch(`${API_BASE}/documents/upload`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: formData,
+        const response = await api.uploadDocument(file, {
+          requiresMfa: uploadOptions.requiresMfa || undefined,
+          accessPassword: uploadOptions.accessPassword || undefined,
+          expiresInDays: uploadOptions.expiresInDays || undefined,
         });
 
         clearInterval(progressInterval);
         setUploadProgress(100);
 
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || 'Upload failed');
+        if (!response.success) {
+          throw new Error(response.error || 'Upload failed');
         }
 
         // Reset form and refresh list
@@ -361,7 +313,7 @@ export default function DocumentsPage() {
         setUploadProgress(0);
       }
     },
-    [uploadOptions, getAuthHeaders, fetchDocuments],
+    [uploadOptions, fetchDocuments],
   );
 
   const handleDrop = useCallback(
@@ -373,54 +325,44 @@ export default function DocumentsPage() {
     [handleUpload],
   );
 
-  const handleViewDocument = useCallback(
-    async (doc: Document, accessToken?: string) => {
-      // Check if MFA or password required
-      if (doc.requiresMfa && !accessToken) {
-        setMfaDocument(doc);
-        return;
+  const handleViewDocument = useCallback(async (doc: Document, accessToken?: string) => {
+    // Check if MFA or password required
+    if (doc.requiresMfa && !accessToken) {
+      setMfaDocument(doc);
+      return;
+    }
+
+    if (doc.hasPassword && !doc.requiresMfa && !accessToken) {
+      setPasswordDocument(doc);
+      return;
+    }
+
+    setLoadingDocument(true);
+    try {
+      const response = await api.downloadDocument(doc.id, accessToken);
+
+      if (!response.success) {
+        if (response.data?.requiresMfa) {
+          setMfaDocument(doc);
+          return;
+        }
+        if (response.data?.requiresPassword) {
+          setPasswordDocument(doc);
+          return;
+        }
+        throw new Error(response.error || 'Failed to load document');
       }
 
-      if (doc.hasPassword && !doc.requiresMfa && !accessToken) {
-        setPasswordDocument(doc);
-        return;
-      }
-
-      setLoadingDocument(true);
-      try {
-        const url = new URL(`${API_BASE}/documents/${doc.id}/download`);
-        if (accessToken) {
-          url.searchParams.set('accessToken', accessToken);
-        }
-
-        const response = await fetch(url.toString(), {
-          headers: getAuthHeaders(),
-        });
-
-        if (!response.ok) {
-          const result = await response.json();
-          if (result.requiresMfa) {
-            setMfaDocument(doc);
-            return;
-          }
-          if (result.requiresPassword) {
-            setPasswordDocument(doc);
-            return;
-          }
-          throw new Error(result.error || 'Failed to load document');
-        }
-
-        const blob = await response.blob();
-        setDocumentBlob(blob);
+      if (response.data) {
+        setDocumentBlob(response.data.blob);
         setViewingDocument(doc);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load document');
-      } finally {
-        setLoadingDocument(false);
       }
-    },
-    [getAuthHeaders],
-  );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load document');
+    } finally {
+      setLoadingDocument(false);
+    }
+  }, []);
 
   const handleVerifyMfa = useCallback(async () => {
     if (!mfaDocument || mfaCode.length !== 6) return;
@@ -429,32 +371,23 @@ export default function DocumentsPage() {
     setMfaError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/documents/${mfaDocument.id}/verify-mfa`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: mfaCode }),
-      });
+      const response = await api.verifyDocumentMfa(mfaDocument.id, mfaCode);
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'MFA verification failed');
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'MFA verification failed');
       }
 
       // Use the access token to view the document
       const doc = mfaDocument;
       setMfaDocument(null);
       setMfaCode('');
-      await handleViewDocument(doc, result.data.accessToken);
+      await handleViewDocument(doc, response.data.accessToken);
     } catch (err) {
       setMfaError(err instanceof Error ? err.message : 'Verification failed');
     } finally {
       setVerifyingMfa(false);
     }
-  }, [mfaDocument, mfaCode, getAuthHeaders, handleViewDocument]);
+  }, [mfaDocument, mfaCode, handleViewDocument]);
 
   const handleVerifyPassword = useCallback(async () => {
     if (!passwordDocument || !documentPassword) return;
@@ -463,31 +396,22 @@ export default function DocumentsPage() {
     setPasswordError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/documents/${passwordDocument.id}/verify-password`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password: documentPassword }),
-      });
+      const response = await api.verifyDocumentPassword(passwordDocument.id, documentPassword);
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Password verification failed');
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Password verification failed');
       }
 
       const doc = passwordDocument;
       setPasswordDocument(null);
       setDocumentPassword('');
-      await handleViewDocument(doc, result.data.accessToken);
+      await handleViewDocument(doc, response.data.accessToken);
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Verification failed');
     } finally {
       setVerifyingPassword(false);
     }
-  }, [passwordDocument, documentPassword, getAuthHeaders, handleViewDocument]);
+  }, [passwordDocument, documentPassword, handleViewDocument]);
 
   const handleDelete = useCallback(
     async (doc: Document) => {
@@ -496,14 +420,10 @@ export default function DocumentsPage() {
       }
 
       try {
-        const response = await fetch(`${API_BASE}/documents/${doc.id}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders(),
-        });
+        const response = await api.deleteDocument(doc.id);
 
-        if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || 'Delete failed');
+        if (!response.success) {
+          throw new Error(response.error || 'Delete failed');
         }
 
         await fetchDocuments();
@@ -511,77 +431,59 @@ export default function DocumentsPage() {
         setError(err instanceof Error ? err.message : 'Delete failed');
       }
     },
-    [getAuthHeaders, fetchDocuments],
+    [fetchDocuments],
   );
 
-  const handleDownload = useCallback(
-    async (doc: Document) => {
-      // Check security requirements
-      if (doc.requiresMfa) {
-        setMfaDocument(doc);
-        return;
+  const handleDownload = useCallback(async (doc: Document) => {
+    // Check security requirements
+    if (doc.requiresMfa) {
+      setMfaDocument(doc);
+      return;
+    }
+
+    if (doc.hasPassword) {
+      setPasswordDocument(doc);
+      return;
+    }
+
+    try {
+      const response = await api.downloadDocument(doc.id);
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Download failed');
       }
 
-      if (doc.hasPassword) {
-        setPasswordDocument(doc);
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_BASE}/documents/${doc.id}/download`, {
-          headers: getAuthHeaders(),
-        });
-
-        if (!response.ok) {
-          throw new Error('Download failed');
-        }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = doc.originalFileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Download failed');
-      }
-    },
-    [getAuthHeaders],
-  );
+      const url = URL.createObjectURL(response.data.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.originalFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
+    }
+  }, []);
 
   const handleTextRedaction = useCallback(async () => {
     if (!textToRedact.trim()) return;
 
     setRedacting(true);
     try {
-      const response = await fetch(`${API_BASE}/documents/redact-text`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: textToRedact,
-          templateId: selectedTemplate || undefined,
-        }),
-      });
+      const response = await api.redactText(textToRedact, selectedTemplate || undefined);
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Redaction failed');
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Redaction failed');
       }
 
-      setRedactedText(result.data.redacted);
+      setRedactedText(response.data.redacted);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Redaction failed');
     } finally {
       setRedacting(false);
     }
-  }, [textToRedact, selectedTemplate, getAuthHeaders]);
+  }, [textToRedact, selectedTemplate]);
 
   // ============================================
   // Filtered Documents

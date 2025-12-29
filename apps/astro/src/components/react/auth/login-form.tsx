@@ -23,10 +23,14 @@
 /**
  * @file Login form component for user authentication with 2FA support
  * @module components/react/LoginForm
+ * @description Uses TanStack Form for form state management and Zod for validation
  */
 
+import { useForm } from '@tanstack/react-form';
 import { ArrowLeft, Eye, EyeOff, Key, Loader2, Shield } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
+import { getFieldError, getInputClass, labelClass, loginSchema } from '@/lib/form-utils';
 import { cancelMFALogin, login, useAuthStore, verifyMFALogin } from '@/stores/auth';
 
 /**
@@ -40,17 +44,39 @@ export default function LoginForm() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const mfaPending = useAuthStore((s) => s.mfaPending);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // MFA state (separate from main form)
   const [mfaCode, setMfaCode] = useState('');
   const mfaInputRef = useRef<HTMLInputElement | null>(null);
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [backupCode, setBackupCode] = useState('');
   const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const [mfaSubmitting, setMfaSubmitting] = useState(false);
+
+  // TanStack Form with Zod validation
+  const form = useForm({
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+    validators: {
+      onChange: loginSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setError('');
+      const result = await login(value.email, value.password);
+
+      if (result.success) {
+        window.location.href = '/dashboard';
+      } else if (result.requiresMFA) {
+        // MFA required, don't reset form
+      } else {
+        setError(result.error || 'Login failed');
+      }
+    },
+  });
 
   useEffect(() => {
     if (mfaPending) {
@@ -76,28 +102,7 @@ export default function LoginForm() {
   }
 
   /**
-   * Handles form submission for initial login
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsSubmitting(true);
-
-    const result = await login(email, password);
-
-    if (result.success) {
-      window.location.href = '/dashboard';
-    } else if (result.requiresMFA) {
-      setIsSubmitting(false);
-    } else {
-      setError(result.error || 'Login failed');
-      setIsSubmitting(false);
-    }
-  };
-
-  /**
    * Handles MFA code input with auto-submit on completion
-   * @param {string} value - Input value from the TOTP field
    */
   const handleMfaInput = (value: string) => {
     const cleaned = value.replace(/\D/g, '').slice(0, 6);
@@ -109,7 +114,6 @@ export default function LoginForm() {
 
   /**
    * Submits MFA code for verification
-   * @param {string} [code] - Optional code override, defaults to state value
    */
   const handleMfaSubmit = async (code?: string) => {
     const fullCode = code || mfaCode;
@@ -119,7 +123,7 @@ export default function LoginForm() {
     }
 
     setError('');
-    setIsSubmitting(true);
+    setMfaSubmitting(true);
 
     const result = await verifyMFALogin(fullCode);
 
@@ -129,7 +133,7 @@ export default function LoginForm() {
       setError(result.error || 'Invalid code');
       setMfaCode('');
       mfaInputRef.current?.focus();
-      setIsSubmitting(false);
+      setMfaSubmitting(false);
     }
   };
 
@@ -146,7 +150,6 @@ export default function LoginForm() {
 
   /**
    * Formats backup code input with automatic dash insertion
-   * @param {string} value - Raw input value
    */
   const handleBackupCodeChange = (value: string) => {
     let cleaned = value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
@@ -169,7 +172,7 @@ export default function LoginForm() {
     }
 
     setError('');
-    setIsSubmitting(true);
+    setMfaSubmitting(true);
     const result = await verifyMFALogin(backupCode);
 
     if (result.success) {
@@ -178,7 +181,7 @@ export default function LoginForm() {
       setError(result.error || 'Invalid backup code');
       setBackupCode('');
       backupInputRef.current?.focus();
-      setIsSubmitting(false);
+      setMfaSubmitting(false);
     }
   };
 
@@ -192,6 +195,7 @@ export default function LoginForm() {
     setBackupCode('');
   };
 
+  // MFA verification screen
   if (mfaPending) {
     return (
       <div className="space-y-6">
@@ -242,16 +246,16 @@ export default function LoginForm() {
               }}
               placeholder="XXXX-XXXX"
               maxLength={9}
-              disabled={isSubmitting}
+              disabled={mfaSubmitting}
               className="block w-full rounded-lg border border-surface-700 bg-surface-800 px-4 py-3 text-center font-mono text-xl tracking-widest text-surface-100 placeholder-surface-500 transition-colors focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500 disabled:opacity-50"
             />
             <button
               type="button"
               onClick={handleBackupCodeSubmit}
-              disabled={isSubmitting || backupCode.replace(/-/g, '').length !== 8}
+              disabled={mfaSubmitting || backupCode.replace(/-/g, '').length !== 8}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-3 text-sm font-semibold text-surface-950 transition-all hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {mfaSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Verifying...
@@ -278,7 +282,7 @@ export default function LoginForm() {
               }}
               placeholder="000000"
               maxLength={6}
-              disabled={isSubmitting}
+              disabled={mfaSubmitting}
               className="block w-full rounded-lg border border-surface-700 bg-surface-800 px-4 py-4 text-center font-mono text-3xl tracking-[0.5em] text-surface-100 placeholder-surface-500 transition-colors focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500 disabled:opacity-50"
             />
             <p className="text-center text-xs text-surface-500">
@@ -287,10 +291,10 @@ export default function LoginForm() {
             <button
               type="button"
               onClick={() => handleMfaSubmit()}
-              disabled={isSubmitting || mfaCode.length !== 6}
+              disabled={mfaSubmitting || mfaCode.length !== 6}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-3 text-sm font-semibold text-surface-950 transition-all hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {mfaSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Verifying...
@@ -323,79 +327,107 @@ export default function LoginForm() {
     );
   }
 
+  // Main login form with TanStack Form
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form
+      className="space-y-6"
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        form.handleSubmit();
+      }}
+    >
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-surface-300">
-          Email address
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-2 block w-full rounded-lg border border-surface-700 bg-surface-800 px-4 py-3 text-surface-100 placeholder-surface-500 transition-colors focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
-          placeholder="you@example.com"
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label htmlFor="password" className="block text-sm font-medium text-surface-300">
-            Password
-          </label>
-          <a
-            href="/forgot-password"
-            className="text-sm text-accent-400 transition-colors hover:text-accent-300"
-          >
-            Forgot password?
-          </a>
-        </div>
-        <div className="relative mt-2">
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="block w-full rounded-lg border border-surface-700 bg-surface-800 px-4 py-3 pr-12 text-surface-100 placeholder-surface-500 transition-colors focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
-            placeholder="••••••••"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 transition-colors hover:text-surface-300"
-          >
-            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-3 text-sm font-semibold text-surface-950 transition-all hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Signing in...
-          </>
-        ) : (
-          'Sign in'
+      <form.Field name="email">
+        {(field) => (
+          <div>
+            <label htmlFor="email" className={labelClass}>
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              className={getInputClass(field)}
+              placeholder="you@example.com"
+              required
+            />
+            {getFieldError(field) && (
+              <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+            )}
+          </div>
         )}
-      </button>
+      </form.Field>
+
+      <form.Field name="password">
+        {(field) => (
+          <div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className={labelClass}>
+                Password
+              </label>
+              <a
+                href="/forgot-password"
+                className="text-sm text-accent-400 transition-colors hover:text-accent-300"
+              >
+                Forgot password?
+              </a>
+            </div>
+            <div className="relative mt-2">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                className={`${getInputClass(field)} pr-12`}
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 transition-colors hover:text-surface-300"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {getFieldError(field) && (
+              <p className="mt-1 text-xs text-red-400">{getFieldError(field)}</p>
+            )}
+          </div>
+        )}
+      </form.Field>
+
+      <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+        {([canSubmit, isSubmitting]) => (
+          <button
+            type="submit"
+            disabled={!canSubmit || isSubmitting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-3 text-sm font-semibold text-surface-950 transition-all hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign in'
+            )}
+          </button>
+        )}
+      </form.Subscribe>
     </form>
   );
 }
