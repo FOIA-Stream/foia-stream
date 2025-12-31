@@ -50,6 +50,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 
 import { api, type User as UserType } from '@/lib/api';
+import { navigateTo } from '@/lib/navigation';
 import { initAuth, refreshUser, useAuthStore } from '@/stores/auth';
 import { PrivacyToggleCompact } from '../common/privacy-toggle';
 
@@ -111,7 +112,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (!authLoading && !isAuth) {
-      window.location.href = '/login';
+      navigateTo('/login');
     }
   }, [authLoading, isAuth]);
 
@@ -978,7 +979,7 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
       setSuccess(true);
       setTimeout(() => {
         localStorage.removeItem('auth_token');
-        window.location.href = '/login';
+        navigateTo('/login');
       }, 2000);
     } else {
       setError(response.error || 'Failed to change password');
@@ -1826,7 +1827,7 @@ function DeleteConfirmationModal({
     if (response.success) {
       if (isAccount) {
         localStorage.removeItem('auth_token');
-        window.location.href = '/';
+        navigateTo('/');
       } else {
         onClose();
         window.location.reload();

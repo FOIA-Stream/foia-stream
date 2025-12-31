@@ -46,6 +46,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoiaRequest } from '@/lib/api';
+import { navigateTo } from '@/lib/navigation';
 import { formatDate, getStatusColor } from '@/lib/utils';
 import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import { maybeRedact, redactName, usePrivacyStore } from '@/stores/privacy';
@@ -90,7 +91,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authLoading && !isAuth) {
-      window.location.href = '/login';
+      navigateTo('/login');
     }
   }, [authLoading, isAuth]);
 
@@ -117,7 +118,7 @@ export default function Dashboard() {
    */
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/';
+    navigateTo('/');
   };
 
   /**

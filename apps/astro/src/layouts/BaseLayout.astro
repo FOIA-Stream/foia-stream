@@ -15,9 +15,9 @@ const {
 
 <!doctype html>
 <html lang="en">
-  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Removed: <base href="/" /> was causing port to be dropped from relative URLs -->
     <meta name="description" content={description} />
     <meta name="theme-color" content="#0a0c0f" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -40,40 +40,23 @@ const {
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- View Transitions API -->
-    <meta name="view-transition" content="same-origin" />
+    <!-- View Transitions API (Disabled to fix port redirect issue) -->
+    <!-- <meta name="view-transition" content="same-origin" /> -->
   </head>
   <body class="min-h-screen bg-surface-950 text-surface-100 antialiased">
     <slot />
     <CookieConsent />
 
     <!-- Service Worker Registration -->
+    <!-- Service Worker Management (Disabled for debugging) -->
     <script is:inline>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('[PWA] Service Worker registered:', registration.scope);
-
-              // Check for updates
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (newWorker) {
-                  newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      // New content available, show update prompt
-                      if (window.confirm('New version available! Reload to update?')) {
-                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                        window.location.reload();
-                      }
-                    }
-                  });
-                }
-              });
-            })
-            .catch((error) => {
-              console.error('[PWA] Service Worker registration failed:', error);
-            });
+        // Unregister any existing service workers to clear cache issues
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            console.log('[SW] Unregistering service worker:', registration.scope);
+            registration.unregister();
+          }
         });
       }
     </script>

@@ -1,0 +1,45 @@
+# Dockerfile for API (Hono/Bun)
+FROM oven/bun:1-alpine AS base
+WORKDIR /app
+
+# Install build dependencies for native modules
+FROM base AS deps
+RUN apk add --no-cache python3 make g++ linux-headers
+
+COPY package.json bun.lock* ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY apps/api/package.json ./apps/api/
+
+# Install dependencies
+RUN bun install
+
+# Copy shared package (exports TypeScript directly)
+FROM deps AS with-shared
+COPY packages/shared ./packages/shared
+COPY packages/typescript-config ./packages/typescript-config
+
+# Build API
+FROM with-shared AS build-api
+COPY apps/api ./apps/api
+WORKDIR /app/apps/api
+RUN bun run build
+
+# Production image - slim, no build tools
+FROM oven/bun:1-alpine AS production
+ENV NODE_ENV=production
+WORKDIR /app
+
+# Copy built artifacts and runtime deps only
+COPY --from=build-api /app/apps/api/dist ./dist
+COPY --from=build-api /app/node_modules ./node_modules
+COPY --from=with-shared /app/packages/shared ./packages/shared
+
+# Security: Run as non-root
+RUN addgroup -g 1001 -S nodejs && \
+  adduser -S api -u 1001 -G nodejs
+USER api
+
+EXPOSE 3001
+
+CMD ["bun", "run", "dist/index.js"]

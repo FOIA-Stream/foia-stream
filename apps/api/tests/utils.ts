@@ -24,62 +24,45 @@
 // FOIA Stream - Test Utilities
 // ============================================
 
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
-import type { Database } from 'better-sqlite3';
-import BetterSqlite3 from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { sql } from 'drizzle-orm';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from '../src/db/schema';
 
-// Type for accessing internal drizzle session
-interface DrizzleWithSession {
-  session: {
-    client: Database;
-  };
-}
+let pool: Pool | null = null;
 
 /**
  * Create a fresh test database instance
  */
-export function createTestDb(dbPath = './data/test.db'): {
-  db: ReturnType<typeof drizzle>;
-  sqlite: Database;
-} {
-  // Clean up existing files
-  if (existsSync(dbPath)) {
-    rmSync(dbPath, { force: true });
-  }
-  if (existsSync(`${dbPath}-shm`)) {
-    rmSync(`${dbPath}-shm`, { force: true });
-  }
-  if (existsSync(`${dbPath}-wal`)) {
-    rmSync(`${dbPath}-wal`, { force: true });
-  }
+export async function createTestDb(connectionString?: string): Promise<{
+  db: NodePgDatabase<typeof schema>;
+  pool: Pool;
+}> {
+  const testConnectionString =
+    connectionString ||
+    process.env.TEST_DATABASE_URL ||
+    'postgresql://postgres:postgres@localhost:5432/foia_stream_test';
 
-  // Ensure directory exists
-  const dir = dbPath.substring(0, dbPath.lastIndexOf('/'));
-  if (dir && !existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+  pool = new Pool({
+    connectionString: testConnectionString,
+    max: 5,
+  });
 
-  // Create database
-  const sqlite = new BetterSqlite3(dbPath);
-  sqlite.exec('PRAGMA journal_mode = WAL');
+  const db = drizzle(pool, { schema });
 
-  const db = drizzle(sqlite, { schema });
+  // Create tables if they don't exist
+  await applyMigrations(db);
 
-  return { db, sqlite };
+  return { db, pool };
 }
 
 /**
  * Apply migrations to test database
  */
-export function applyMigrations(db: ReturnType<typeof drizzle>) {
-  // Use drizzle push to create tables
-  // For tests, we'll create tables directly from schema
-  const sqlite = (db as unknown as DrizzleWithSession).session.client;
-
+export async function applyMigrations(db: NodePgDatabase<typeof schema>) {
   // Create tables using raw SQL from schema definitions
-  sqlite.exec(`
+  // Note: In production, use drizzle-kit push or migrations
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY NOT NULL,
       email TEXT NOT NULL UNIQUE,
@@ -88,34 +71,34 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       first_name TEXT NOT NULL,
       last_name TEXT NOT NULL,
       organization TEXT,
-      is_verified INTEGER DEFAULT 0 NOT NULL,
-      is_anonymous INTEGER DEFAULT 0 NOT NULL,
-      two_factor_enabled INTEGER DEFAULT 0 NOT NULL,
+      is_verified BOOLEAN DEFAULT false NOT NULL,
+      is_anonymous BOOLEAN DEFAULT false NOT NULL,
+      two_factor_enabled BOOLEAN DEFAULT false NOT NULL,
       two_factor_secret TEXT,
       failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
-      locked_until TEXT,
-      last_failed_login_at TEXT,
-      password_changed_at TEXT,
-      must_change_password INTEGER DEFAULT 0 NOT NULL,
-      terms_accepted_at TEXT,
-      privacy_accepted_at TEXT,
-      data_processing_consent_at TEXT,
-      marketing_consent_at TEXT,
-      consent_updated_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      locked_until TIMESTAMP,
+      last_failed_login_at TIMESTAMP,
+      password_changed_at TIMESTAMP,
+      must_change_password BOOLEAN DEFAULT false NOT NULL,
+      terms_accepted_at TIMESTAMP,
+      privacy_accepted_at TIMESTAMP,
+      data_processing_consent_at TIMESTAMP,
+      marketing_consent_at TIMESTAMP,
+      consent_updated_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       token TEXT NOT NULL UNIQUE,
-      expires_at TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
       ip_address TEXT,
       user_agent TEXT,
       device_name TEXT,
-      last_active_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      last_active_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS api_keys (
@@ -124,9 +107,9 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       key_hash TEXT NOT NULL,
       key_preview TEXT NOT NULL,
       name TEXT DEFAULT 'Default' NOT NULL,
-      last_used_at TEXT,
-      expires_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      last_used_at TIMESTAMP,
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS agencies (
@@ -142,8 +125,8 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       foia_portal_url TEXT,
       response_deadline_days INTEGER DEFAULT 20 NOT NULL,
       appeal_deadline_days INTEGER DEFAULT 30 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS request_templates (
@@ -154,10 +137,10 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       template_text TEXT NOT NULL,
       jurisdiction_level TEXT,
       created_by TEXT REFERENCES users(id),
-      is_official INTEGER DEFAULT 0 NOT NULL,
+      is_official BOOLEAN DEFAULT false NOT NULL,
       usage_count INTEGER DEFAULT 0 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS foia_requests (
@@ -168,23 +151,23 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       category TEXT NOT NULL,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
-      date_range_start TEXT,
-      date_range_end TEXT,
+      date_range_start TIMESTAMP,
+      date_range_end TIMESTAMP,
       template_id TEXT REFERENCES request_templates(id),
       tracking_number TEXT,
       estimated_fee REAL,
       actual_fee REAL,
-      submitted_at TEXT,
-      acknowledged_at TEXT,
-      due_date TEXT,
-      completed_at TEXT,
+      submitted_at TIMESTAMP,
+      acknowledged_at TIMESTAMP,
+      due_date TIMESTAMP,
+      completed_at TIMESTAMP,
       denial_reason TEXT,
-      is_public INTEGER DEFAULT 1 NOT NULL,
-      content_purge_at TEXT,
-      content_purged INTEGER DEFAULT 0 NOT NULL,
+      is_public BOOLEAN DEFAULT true NOT NULL,
+      content_purge_at TIMESTAMP,
+      content_purged BOOLEAN DEFAULT false NOT NULL,
       title_hash TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS documents (
@@ -199,12 +182,12 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       file_path TEXT NOT NULL,
       file_size INTEGER NOT NULL,
       mime_type TEXT NOT NULL,
-      is_redacted INTEGER DEFAULT 0 NOT NULL,
-      is_public INTEGER DEFAULT 0 NOT NULL,
+      is_redacted BOOLEAN DEFAULT false NOT NULL,
+      is_public BOOLEAN DEFAULT false NOT NULL,
       transcript TEXT,
-      metadata TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      metadata JSONB,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS comments (
@@ -214,12 +197,12 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       type TEXT DEFAULT 'general' NOT NULL,
       content TEXT NOT NULL,
       timestamp INTEGER,
-      is_anonymous INTEGER DEFAULT 0 NOT NULL,
+      is_anonymous BOOLEAN DEFAULT false NOT NULL,
       upvotes INTEGER DEFAULT 0 NOT NULL,
       downvotes INTEGER DEFAULT 0 NOT NULL,
-      is_verified INTEGER DEFAULT 0 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      is_verified BOOLEAN DEFAULT false NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS comment_votes (
@@ -227,7 +210,7 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       vote INTEGER NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS appeals (
@@ -235,12 +218,12 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       request_id TEXT NOT NULL REFERENCES foia_requests(id),
       user_id TEXT NOT NULL REFERENCES users(id),
       grounds TEXT NOT NULL,
-      submitted_at TEXT NOT NULL,
+      submitted_at TIMESTAMP NOT NULL,
       status TEXT DEFAULT 'pending' NOT NULL,
-      response_at TEXT,
+      response_at TIMESTAMP,
       response_text TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS audit_logs (
@@ -249,10 +232,10 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       action TEXT NOT NULL,
       resource_type TEXT NOT NULL,
       resource_id TEXT NOT NULL,
-      details TEXT,
+      details JSONB,
       ip_address TEXT,
       user_agent TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS agency_stats (
@@ -265,7 +248,7 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       appealed_requests INTEGER DEFAULT 0 NOT NULL,
       average_response_days REAL,
       compliance_rate REAL,
-      last_updated TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      last_updated TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS use_of_force_stats (
@@ -273,13 +256,13 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       agency_id TEXT NOT NULL REFERENCES agencies(id),
       year INTEGER NOT NULL,
       total_incidents INTEGER DEFAULT 0 NOT NULL,
-      by_type TEXT,
-      by_outcome TEXT,
+      by_type JSONB,
+      by_outcome JSONB,
       officer_involved_shootings INTEGER DEFAULT 0 NOT NULL,
       complaints INTEGER DEFAULT 0 NOT NULL,
       sustained_complaints INTEGER DEFAULT 0 NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS knowledge_articles (
@@ -290,67 +273,122 @@ export function applyMigrations(db: ReturnType<typeof drizzle>) {
       content TEXT NOT NULL,
       summary TEXT,
       state TEXT,
-      is_published INTEGER DEFAULT 0 NOT NULL,
+      is_published BOOLEAN DEFAULT false NOT NULL,
       view_count INTEGER DEFAULT 0 NOT NULL,
       created_by TEXT REFERENCES users(id),
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
 
-    -- Performance indexes for common query patterns
-    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_foia_requests_user_id ON foia_requests(user_id);
-    CREATE INDEX IF NOT EXISTS idx_foia_requests_agency_id ON foia_requests(agency_id);
-    CREATE INDEX IF NOT EXISTS idx_foia_requests_status ON foia_requests(status);
-    CREATE INDEX IF NOT EXISTS idx_documents_request_id ON documents(request_id);
-    CREATE INDEX IF NOT EXISTS idx_comments_document_id ON comments(document_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-    CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+    CREATE TABLE IF NOT EXISTS consent_history (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      consent_type TEXT NOT NULL,
+      action TEXT NOT NULL,
+      policy_version TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS secure_documents (
+      id TEXT PRIMARY KEY NOT NULL,
+      uploaded_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      original_file_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      mime_type TEXT NOT NULL,
+      sha256_hash TEXT NOT NULL,
+      status TEXT DEFAULT 'pending_scan' NOT NULL,
+      virus_scan_result JSONB,
+      requires_mfa BOOLEAN DEFAULT false NOT NULL,
+      access_password_hash TEXT,
+      is_encrypted BOOLEAN DEFAULT true NOT NULL,
+      encryption_key_id TEXT,
+      expires_at TIMESTAMP,
+      access_count INTEGER DEFAULT 0 NOT NULL,
+      last_accessed_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS document_access_log (
+      id TEXT PRIMARY KEY NOT NULL,
+      document_id TEXT NOT NULL REFERENCES secure_documents(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      access_type TEXT NOT NULL,
+      mfa_verified BOOLEAN DEFAULT false NOT NULL,
+      ip_address TEXT,
+      user_agent TEXT,
+      metadata JSONB,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS redaction_history (
+      id TEXT PRIMARY KEY NOT NULL,
+      source_document_id TEXT NOT NULL REFERENCES secure_documents(id) ON DELETE CASCADE,
+      result_document_id TEXT REFERENCES secure_documents(id),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      template_id TEXT,
+      redaction_count INTEGER DEFAULT 0 NOT NULL,
+      redaction_areas JSONB,
+      patterns_matched JSONB,
+      is_permanent BOOLEAN DEFAULT false NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS custom_redaction_templates (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT DEFAULT 'Custom' NOT NULL,
+      patterns JSONB,
+      is_shared BOOLEAN DEFAULT false NOT NULL,
+      usage_count INTEGER DEFAULT 0 NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
   `);
 }
 
 /**
  * Clean up test database
  */
-export function cleanupTestDb(sqlite: Database, dbPath = './data/test.db') {
-  try {
-    sqlite.close();
-  } catch (_e) {
-    // Ignore close errors
-  }
-
-  if (existsSync(dbPath)) {
-    rmSync(dbPath, { force: true });
-  }
-  if (existsSync(`${dbPath}-shm`)) {
-    rmSync(`${dbPath}-shm`, { force: true });
-  }
-  if (existsSync(`${dbPath}-wal`)) {
-    rmSync(`${dbPath}-wal`, { force: true });
+export async function cleanupTestDb() {
+  if (pool) {
+    await pool.end();
+    pool = null;
   }
 }
 
 /**
  * Clear all data from test database
  */
-export function clearTestData(sqlite: Database) {
-  sqlite.exec(`
-    DELETE FROM knowledge_articles;
-    DELETE FROM use_of_force_stats;
-    DELETE FROM audit_logs;
-    DELETE FROM agency_stats;
-    DELETE FROM comment_votes;
-    DELETE FROM comments;
-    DELETE FROM documents;
-    DELETE FROM appeals;
-    DELETE FROM foia_requests;
-    DELETE FROM sessions;
-    DELETE FROM api_keys;
-    DELETE FROM request_templates;
-    DELETE FROM agencies;
-    DELETE FROM users;
+export async function clearTestData(db: NodePgDatabase<typeof schema>) {
+  // Use TRUNCATE with CASCADE for efficient deletion
+  await db.execute(sql`
+    TRUNCATE
+      custom_redaction_templates,
+      redaction_history,
+      document_access_log,
+      secure_documents,
+      consent_history,
+      knowledge_articles,
+      use_of_force_stats,
+      agency_stats,
+      audit_logs,
+      appeals,
+      comment_votes,
+      comments,
+      documents,
+      foia_requests,
+      request_templates,
+      sessions,
+      api_keys,
+      agencies,
+      users
+    CASCADE;
   `);
 }
 
@@ -400,7 +438,7 @@ export const testData = {
 /**
  * Create an authenticated test context
  */
-export async function createAuthenticatedUser(_db: ReturnType<typeof drizzle>) {
+export async function createAuthenticatedUser(_db: NodePgDatabase<typeof schema>) {
   const { authService } = await import('../src/services/auth.service');
   const userData = testData.user();
   const user = await authService.createUser(userData);

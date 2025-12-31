@@ -34,8 +34,17 @@
 // FOIA Stream - Database Schema (Drizzle ORM)
 // ============================================
 
-import { sql } from 'drizzle-orm';
-import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 // ============================================
 // Users & Authentication
@@ -49,7 +58,7 @@ import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-or
  *              Includes account lockout fields for brute-force protection (GAP-007).
  * @compliance NIST 800-53 IA-2 (Identification and Authentication)
  */
-export const users = sqliteTable('users', {
+export const users = pgTable('users', {
   /** Unique user identifier (UUID) */
   id: text('id').primaryKey(),
   /** User email address - used for login */
@@ -73,10 +82,10 @@ export const users = sqliteTable('users', {
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   organization: text('organization'),
-  isVerified: integer('is_verified', { mode: 'boolean' }).notNull().default(false),
-  isAnonymous: integer('is_anonymous', { mode: 'boolean' }).notNull().default(false),
+  isVerified: boolean('is_verified').notNull().default(false),
+  isAnonymous: boolean('is_anonymous').notNull().default(false),
   /** MFA enabled flag */
-  twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).notNull().default(false),
+  twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
   /** Encrypted TOTP secret for MFA */
   twoFactorSecret: text('two_factor_secret'),
   /**
@@ -84,24 +93,24 @@ export const users = sqliteTable('users', {
    * @compliance NIST 800-53 AC-7 (Unsuccessful Logon Attempts)
    */
   failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
-  lockedUntil: text('locked_until'),
-  lastFailedLoginAt: text('last_failed_login_at'),
+  lockedUntil: timestamp('locked_until'),
+  lastFailedLoginAt: timestamp('last_failed_login_at'),
   /** Password management */
-  passwordChangedAt: text('password_changed_at'),
-  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
+  passwordChangedAt: timestamp('password_changed_at'),
+  mustChangePassword: boolean('must_change_password').notNull().default(false),
   /**
    * Consent tracking fields (GDPR/CCPA compliance)
    * @compliance GDPR Article 7 (Conditions for consent), CCPA
    */
-  termsAcceptedAt: text('terms_accepted_at'),
-  privacyAcceptedAt: text('privacy_accepted_at'),
-  dataProcessingConsentAt: text('data_processing_consent_at'),
+  termsAcceptedAt: timestamp('terms_accepted_at'),
+  privacyAcceptedAt: timestamp('privacy_accepted_at'),
+  dataProcessingConsentAt: timestamp('data_processing_consent_at'),
   /** Marketing consent is optional and separate from required consents */
-  marketingConsentAt: text('marketing_consent_at'),
+  marketingConsentAt: timestamp('marketing_consent_at'),
   /** Timestamp when consent was last updated/withdrawn */
-  consentUpdatedAt: text('consent_updated_at'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  consentUpdatedAt: timestamp('consent_updated_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 /**
@@ -111,7 +120,7 @@ export const users = sqliteTable('users', {
  * @description Tracks active user sessions with JWT tokens and expiration.
  * @compliance NIST 800-53 AC-12 (Session Termination)
  */
-export const sessions = sqliteTable(
+export const sessions = pgTable(
   'sessions',
   {
     id: text('id').primaryKey(),
@@ -119,13 +128,13 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     token: text('token').notNull().unique(),
-    expiresAt: text('expires_at').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
     /** Session metadata for device tracking */
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
     deviceName: text('device_name'),
-    lastActiveAt: text('last_active_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    lastActiveAt: timestamp('last_active_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_sessions_user_id').on(table.userId),
@@ -141,7 +150,7 @@ export const sessions = sqliteTable(
  * @description Allows users to generate API keys for external integrations.
  * @compliance NIST 800-53 IA-5 (Authenticator Management)
  */
-export const apiKeys = sqliteTable(
+export const apiKeys = pgTable(
   'api_keys',
   {
     id: text('id').primaryKey(),
@@ -153,9 +162,9 @@ export const apiKeys = sqliteTable(
     /** Last 4 characters of the key for display */
     keyPreview: text('key_preview').notNull(),
     name: text('name').notNull().default('Default'),
-    lastUsedAt: text('last_used_at'),
-    expiresAt: text('expires_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    lastUsedAt: timestamp('last_used_at'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_api_keys_user_id').on(table.userId),
@@ -173,7 +182,7 @@ export const apiKeys = sqliteTable(
  * @table agencies
  * @description Stores information about federal, state, local, and county agencies.
  */
-export const agencies = sqliteTable(
+export const agencies = pgTable(
   'agencies',
   {
     id: text('id').primaryKey(),
@@ -192,8 +201,8 @@ export const agencies = sqliteTable(
     responseDeadlineDays: integer('response_deadline_days').notNull().default(20),
     /** Appeal deadline in business days */
     appealDeadlineDays: integer('appeal_deadline_days').notNull().default(30),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_agencies_jurisdiction').on(table.jurisdictionLevel),
@@ -206,13 +215,50 @@ export const agencies = sqliteTable(
 // ============================================
 
 /**
+ * Request Templates table - reusable FOIA request templates
+ *
+ * @table request_templates
+ * @description Pre-built templates for common FOIA request types.
+ */
+export const requestTemplates = pgTable('request_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  category: text('category', {
+    enum: [
+      'body_cam_footage',
+      'incident_report',
+      'arrest_record',
+      'use_of_force_report',
+      'policy_document',
+      'budget_record',
+      'contract',
+      'complaint_record',
+      'training_material',
+      'personnel_record',
+      'communication',
+      'other',
+    ],
+  }).notNull(),
+  description: text('description').notNull(),
+  templateText: text('template_text').notNull(),
+  jurisdictionLevel: text('jurisdiction_level', {
+    enum: ['federal', 'state', 'local', 'county'],
+  }),
+  createdBy: text('created_by').references(() => users.id),
+  isOfficial: boolean('is_official').notNull().default(false),
+  usageCount: integer('usage_count').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+/**
  * FOIA Requests table - tracks all public records requests
  *
  * @table foia_requests
  * @description Core table for FOIA request lifecycle management.
  *              Tracks status, deadlines, fees, and relationships to users/agencies.
  */
-export const foiaRequests = sqliteTable(
+export const foiaRequests = pgTable(
   'foia_requests',
   {
     id: text('id').primaryKey(),
@@ -260,32 +306,32 @@ export const foiaRequests = sqliteTable(
     }).notNull(),
     title: text('title').notNull(),
     description: text('description').notNull(),
-    dateRangeStart: text('date_range_start'),
-    dateRangeEnd: text('date_range_end'),
+    dateRangeStart: timestamp('date_range_start'),
+    dateRangeEnd: timestamp('date_range_end'),
     templateId: text('template_id').references(() => requestTemplates.id),
     /** Agency-assigned tracking number */
     trackingNumber: text('tracking_number'),
     estimatedFee: real('estimated_fee'),
     actualFee: real('actual_fee'),
-    submittedAt: text('submitted_at'),
-    acknowledgedAt: text('acknowledged_at'),
-    dueDate: text('due_date'),
-    completedAt: text('completed_at'),
+    submittedAt: timestamp('submitted_at'),
+    acknowledgedAt: timestamp('acknowledged_at'),
+    dueDate: timestamp('due_date'),
+    completedAt: timestamp('completed_at'),
     denialReason: text('denial_reason'),
     /** Public visibility flag for transparency */
-    isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(true),
+    isPublic: boolean('is_public').notNull().default(true),
     /**
      * Data retention fields
      * @compliance GDPR Article 5 (Storage limitation), CCPA
      */
     /** When the request content should be purged (90 days after completion) */
-    contentPurgeAt: text('content_purge_at'),
+    contentPurgeAt: timestamp('content_purge_at'),
     /** Whether content has been purged (title/description cleared) */
-    contentPurged: integer('content_purged', { mode: 'boolean' }).notNull().default(false),
+    contentPurged: boolean('content_purged').notNull().default(false),
     /** Original title stored as hash for reference after purge */
     titleHash: text('title_hash'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_foia_requests_user_id').on(table.userId),
@@ -302,43 +348,6 @@ export const foiaRequests = sqliteTable(
   ],
 );
 
-/**
- * Request Templates table - reusable FOIA request templates
- *
- * @table request_templates
- * @description Pre-built templates for common FOIA request types.
- */
-export const requestTemplates = sqliteTable('request_templates', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  category: text('category', {
-    enum: [
-      'body_cam_footage',
-      'incident_report',
-      'arrest_record',
-      'use_of_force_report',
-      'policy_document',
-      'budget_record',
-      'contract',
-      'complaint_record',
-      'training_material',
-      'personnel_record',
-      'communication',
-      'other',
-    ],
-  }).notNull(),
-  description: text('description').notNull(),
-  templateText: text('template_text').notNull(),
-  jurisdictionLevel: text('jurisdiction_level', {
-    enum: ['federal', 'state', 'local', 'county'],
-  }),
-  createdBy: text('created_by').references(() => users.id),
-  isOfficial: integer('is_official', { mode: 'boolean' }).notNull().default(false),
-  usageCount: integer('usage_count').notNull().default(0),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-});
-
 // ============================================
 // Documents & Media
 // ============================================
@@ -351,7 +360,7 @@ export const requestTemplates = sqliteTable('request_templates', {
  *              body cam footage, PDFs, images, and other media types.
  * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
  */
-export const documents = sqliteTable(
+export const documents = pgTable(
   'documents',
   {
     id: text('id').primaryKey(),
@@ -371,10 +380,10 @@ export const documents = sqliteTable(
     filePath: text('file_path').notNull(),
     fileSize: integer('file_size').notNull(),
     mimeType: text('mime_type').notNull(),
-    isRedacted: integer('is_redacted', { mode: 'boolean' }).notNull().default(false),
-    isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
+    isRedacted: boolean('is_redacted').notNull().default(false),
+    isPublic: boolean('is_public').notNull().default(false),
     transcript: text('transcript'),
-    metadata: text('metadata', { mode: 'json' }).$type<{
+    metadata: jsonb('metadata').$type<{
       date?: string;
       location?: string;
       officerIds?: string[];
@@ -382,8 +391,8 @@ export const documents = sqliteTable(
       duration?: number;
       tags?: string[];
     }>(),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_documents_request_id').on(table.requestId),
@@ -406,7 +415,7 @@ export const documents = sqliteTable(
  * @description Allows users to annotate documents with comments, flags,
  *              and timestamps (for video). Supports community review.
  */
-export const comments = sqliteTable(
+export const comments = pgTable(
   'comments',
   {
     id: text('id').primaryKey(),
@@ -430,12 +439,12 @@ export const comments = sqliteTable(
       .default('general'),
     content: text('content').notNull(),
     timestamp: integer('timestamp'), // seconds into video for video comments
-    isAnonymous: integer('is_anonymous', { mode: 'boolean' }).notNull().default(false),
+    isAnonymous: boolean('is_anonymous').notNull().default(false),
     upvotes: integer('upvotes').notNull().default(0),
     downvotes: integer('downvotes').notNull().default(0),
-    isVerified: integer('is_verified', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    isVerified: boolean('is_verified').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_comments_document_id').on(table.documentId),
@@ -450,7 +459,7 @@ export const comments = sqliteTable(
  *
  * @table comment_votes
  */
-export const commentVotes = sqliteTable(
+export const commentVotes = pgTable(
   'comment_votes',
   {
     id: text('id').primaryKey(),
@@ -462,7 +471,7 @@ export const commentVotes = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     /** 1 for upvote, -1 for downvote */
     vote: integer('vote').notNull(),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_comment_votes_comment_id').on(table.commentId),
@@ -481,7 +490,7 @@ export const commentVotes = sqliteTable(
  * @table appeals
  * @description Tracks administrative appeals of denied FOIA requests.
  */
-export const appeals = sqliteTable(
+export const appeals = pgTable(
   'appeals',
   {
     id: text('id').primaryKey(),
@@ -492,16 +501,16 @@ export const appeals = sqliteTable(
       .notNull()
       .references(() => users.id),
     grounds: text('grounds').notNull(),
-    submittedAt: text('submitted_at').notNull(),
+    submittedAt: timestamp('submitted_at').notNull(),
     status: text('status', {
       enum: ['pending', 'granted', 'denied', 'partial'],
     })
       .notNull()
       .default('pending'),
-    responseAt: text('response_at'),
+    responseAt: timestamp('response_at'),
     responseText: text('response_text'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_appeals_request_id').on(table.requestId),
@@ -522,7 +531,7 @@ export const appeals = sqliteTable(
  *              Required for SOC 2 and NIST 800-53 compliance.
  * @compliance NIST 800-53 AU-3 (Content of Audit Records), AU-12 (Audit Generation)
  */
-export const auditLogs = sqliteTable(
+export const auditLogs = pgTable(
   'audit_logs',
   {
     id: text('id').primaryKey(),
@@ -578,10 +587,10 @@ export const auditLogs = sqliteTable(
     }).notNull(),
     resourceType: text('resource_type').notNull(),
     resourceId: text('resource_id').notNull(),
-    details: text('details', { mode: 'json' }).$type<Record<string, unknown>>(),
+    details: jsonb('details').$type<Record<string, unknown>>(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_audit_logs_user_id').on(table.userId),
@@ -608,7 +617,7 @@ export const auditLogs = sqliteTable(
  *              Required for GDPR Article 7 (proof of consent) and CCPA.
  * @compliance GDPR Article 7, CCPA 1798.100
  */
-export const consentHistory = sqliteTable('consent_history', {
+export const consentHistory = pgTable('consent_history', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
@@ -628,14 +637,14 @@ export const consentHistory = sqliteTable('consent_history', {
   /** User agent at time of consent */
   userAgent: text('user_agent'),
   /** Timestamp of consent action */
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // ============================================
 // Statistics & Metrics
 // ============================================
 
-export const agencyStats = sqliteTable('agency_stats', {
+export const agencyStats = pgTable('agency_stats', {
   id: text('id').primaryKey(),
   agencyId: text('agency_id')
     .notNull()
@@ -648,10 +657,10 @@ export const agencyStats = sqliteTable('agency_stats', {
   appealedRequests: integer('appealed_requests').notNull().default(0),
   averageResponseDays: real('average_response_days'),
   complianceRate: real('compliance_rate'),
-  lastUpdated: text('last_updated').notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastUpdated: timestamp('last_updated').notNull().defaultNow(),
 });
 
-export const useOfForceStats = sqliteTable(
+export const useOfForceStats = pgTable(
   'use_of_force_stats',
   {
     id: text('id').primaryKey(),
@@ -660,13 +669,13 @@ export const useOfForceStats = sqliteTable(
       .references(() => agencies.id),
     year: integer('year').notNull(),
     totalIncidents: integer('total_incidents').notNull().default(0),
-    byType: text('by_type', { mode: 'json' }).$type<Record<string, number>>(),
-    byOutcome: text('by_outcome', { mode: 'json' }).$type<Record<string, number>>(),
+    byType: jsonb('by_type').$type<Record<string, number>>(),
+    byOutcome: jsonb('by_outcome').$type<Record<string, number>>(),
     officerInvolvedShootings: integer('officer_involved_shootings').notNull().default(0),
     complaints: integer('complaints').notNull().default(0),
     sustainedComplaints: integer('sustained_complaints').notNull().default(0),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_use_of_force_stats_agency_id').on(table.agencyId),
@@ -679,7 +688,7 @@ export const useOfForceStats = sqliteTable(
 // Knowledge Base
 // ============================================
 
-export const knowledgeArticles = sqliteTable(
+export const knowledgeArticles = pgTable(
   'knowledge_articles',
   {
     id: text('id').primaryKey(),
@@ -691,11 +700,11 @@ export const knowledgeArticles = sqliteTable(
     content: text('content').notNull(),
     summary: text('summary'),
     state: text('state'), // for state-specific guides
-    isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(false),
+    isPublished: boolean('is_published').notNull().default(false),
     viewCount: integer('view_count').notNull().default(0),
     createdBy: text('created_by').references(() => users.id),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_knowledge_articles_category').on(table.category),
@@ -718,7 +727,7 @@ export const knowledgeArticles = sqliteTable(
  * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
  * @compliance NIST 800-53 AC-3 (Access Enforcement)
  */
-export const secureDocuments = sqliteTable(
+export const secureDocuments = pgTable(
   'secure_documents',
   {
     id: text('id').primaryKey(),
@@ -751,7 +760,7 @@ export const secureDocuments = sqliteTable(
       .notNull()
       .default('pending_scan'),
     /** VirusTotal scan result */
-    virusScanResult: text('virus_scan_result', { mode: 'json' }).$type<{
+    virusScanResult: jsonb('virus_scan_result').$type<{
       scannedAt?: string;
       isSafe?: boolean;
       status?: string;
@@ -759,21 +768,21 @@ export const secureDocuments = sqliteTable(
       detections?: Array<{ engine: string; result: string }>;
     }>(),
     /** Whether MFA is required to access this document */
-    requiresMfa: integer('requires_mfa', { mode: 'boolean' }).notNull().default(false),
+    requiresMfa: boolean('requires_mfa').notNull().default(false),
     /** Access password hash (optional additional protection) */
     accessPasswordHash: text('access_password_hash'),
     /** Whether the document is encrypted at rest */
-    isEncrypted: integer('is_encrypted', { mode: 'boolean' }).notNull().default(true),
+    isEncrypted: boolean('is_encrypted').notNull().default(true),
     /** Encryption key ID for key rotation */
     encryptionKeyId: text('encryption_key_id'),
     /** Expiration date for auto-deletion */
-    expiresAt: text('expires_at'),
+    expiresAt: timestamp('expires_at'),
     /** Number of times the document has been accessed */
     accessCount: integer('access_count').notNull().default(0),
     /** Last access timestamp */
-    lastAccessedAt: text('last_accessed_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    lastAccessedAt: timestamp('last_accessed_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_secure_documents_uploaded_by').on(table.uploadedBy),
@@ -793,7 +802,7 @@ export const secureDocuments = sqliteTable(
  * @compliance NIST 800-53 AU-3 (Content of Audit Records)
  * @compliance NIST 800-53 AU-12 (Audit Generation)
  */
-export const documentAccessLog = sqliteTable(
+export const documentAccessLog = pgTable(
   'document_access_log',
   {
     id: text('id').primaryKey(),
@@ -810,15 +819,15 @@ export const documentAccessLog = sqliteTable(
       enum: ['view', 'download', 'preview_redaction', 'apply_redaction', 'share', 'delete'],
     }).notNull(),
     /** Whether MFA was verified for this access */
-    mfaVerified: integer('mfa_verified', { mode: 'boolean' }).notNull().default(false),
+    mfaVerified: boolean('mfa_verified').notNull().default(false),
     /** IP address of the accessor */
     ipAddress: text('ip_address'),
     /** User agent string */
     userAgent: text('user_agent'),
     /** Additional metadata */
-    metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
     /** Timestamp of access */
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_document_access_log_document_id').on(table.documentId),
@@ -837,7 +846,7 @@ export const documentAccessLog = sqliteTable(
  * @compliance NIST 800-53 AU-3 (Content of Audit Records)
  * @compliance NIST 800-53 MP-6 (Media Sanitization)
  */
-export const redactionHistory = sqliteTable(
+export const redactionHistory = pgTable(
   'redaction_history',
   {
     id: text('id').primaryKey(),
@@ -856,26 +865,28 @@ export const redactionHistory = sqliteTable(
     /** Number of redactions applied */
     redactionCount: integer('redaction_count').notNull().default(0),
     /** Redaction areas applied */
-    redactionAreas: text('redaction_areas', { mode: 'json' }).$type<
-      Array<{
-        page: number;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        reason?: string;
-      }>
-    >(),
+    redactionAreas:
+      jsonb('redaction_areas').$type<
+        Array<{
+          page: number;
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+          reason?: string;
+        }>
+      >(),
     /** Patterns matched (for auto-redaction) */
-    patternsMatched: text('patterns_matched', { mode: 'json' }).$type<
-      Array<{
-        patternId: string;
-        matchCount: number;
-      }>
-    >(),
+    patternsMatched:
+      jsonb('patterns_matched').$type<
+        Array<{
+          patternId: string;
+          matchCount: number;
+        }>
+      >(),
     /** Whether this was a preview or permanent application */
-    isPermanent: integer('is_permanent', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    isPermanent: boolean('is_permanent').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_redaction_history_source_document_id').on(table.sourceDocumentId),
@@ -892,7 +903,7 @@ export const redactionHistory = sqliteTable(
  * @description Allows users to save custom redaction patterns and templates
  *              for reuse across documents.
  */
-export const customRedactionTemplates = sqliteTable(
+export const customRedactionTemplates = pgTable(
   'custom_redaction_templates',
   {
     id: text('id').primaryKey(),
@@ -907,22 +918,23 @@ export const customRedactionTemplates = sqliteTable(
     /** Template category */
     category: text('category').notNull().default('Custom'),
     /** Pattern definitions */
-    patterns: text('patterns', { mode: 'json' }).$type<
-      Array<{
-        id: string;
-        name: string;
-        pattern: string;
-        flags?: string;
-        sensitivity: 'low' | 'medium' | 'high' | 'critical';
-        redactionLabel: string;
-      }>
-    >(),
+    patterns:
+      jsonb('patterns').$type<
+        Array<{
+          id: string;
+          name: string;
+          pattern: string;
+          flags?: string;
+          sensitivity: 'low' | 'medium' | 'high' | 'critical';
+          redactionLabel: string;
+        }>
+      >(),
     /** Whether this template is shared with team */
-    isShared: integer('is_shared', { mode: 'boolean' }).notNull().default(false),
+    isShared: boolean('is_shared').notNull().default(false),
     /** Usage count */
     usageCount: integer('usage_count').notNull().default(0),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('idx_custom_redaction_templates_user_id').on(table.userId),

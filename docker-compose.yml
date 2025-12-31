@@ -1,0 +1,124 @@
+services:
+  # ============================================
+  # Anubis - Bot Protection Reverse Proxy
+  # ============================================
+  anubis:
+    image: ghcr.io/techarohq/anubis:latest
+    container_name: foia-anubis
+    environment:
+      BIND: ":8080"
+      DIFFICULTY: "4"
+      METRICS_BIND: ":9090"
+      SERVE_ROBOTS_TXT: "true"
+      TARGET: "http://nginx:80"
+      POLICY_FNAME: "/data/cfg/botPolicy.yaml"
+      OG_PASSTHROUGH: "true"
+      OG_EXPIRY_TIME: "24h"
+      USE_REMOTE_ADDRESS: "true"  # Use client IP directly (no upstream proxy)
+      PUBLIC_URL: "http://localhost:8080"  # Explicit public URL to preserve port in redirects
+    healthcheck:
+      test: ["CMD", "anubis", "--healthcheck"]
+      interval: 5s
+      timeout: 30s
+      retries: 5
+      start_period: 500ms
+    ports:
+      - "8080:8080"    # Main proxy port (public access)
+    volumes:
+      - "./botPolicy.yaml:/data/cfg/botPolicy.yaml:ro"
+    depends_on:
+      nginx:
+        condition: service_started
+    networks:
+      - foia-network
+    restart: unless-stopped
+
+  # ============================================
+  # Astro Frontend (SSR)
+  # ============================================
+  astro:
+    build:
+      context: .
+      dockerfile: Dockerfile.astro
+    container_name: foia-astro
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      # For SSR fetching
+      PUBLIC_API_URL: "http://api:3001/api/v1"
+    networks:
+      - foia-network
+    restart: unless-stopped
+
+  # ============================================
+  # Nginx - Reverse Proxy
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: foia-nginx
+    volumes:
+      - "./nginx.conf:/etc/nginx/nginx.conf:ro"
+    depends_on:
+      api:
+        condition: service_started
+      astro:
+        condition: service_started
+    networks:
+      - foia-network
+    restart: unless-stopped
+
+  # ============================================
+  # API Backend (Hono/Bun)
+  # ============================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: foia-api
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: "postgresql://foia:foia_dev_password@postgres:5432/foia_stream"
+      JWT_SECRET: "dev_jwt_secret_change_in_production_32chars"
+      ENCRYPTION_KEY: "dev_encryption_key_change_in_prod_32ch"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - foia-network
+    restart: unless-stopped
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: foia-postgres
+    environment:
+      POSTGRES_USER: foia
+      POSTGRES_PASSWORD: foia_dev_password
+      POSTGRES_DB: foia_stream
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foia"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - foia-network
+    restart: unless-stopped
+
+networks:
+  foia-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

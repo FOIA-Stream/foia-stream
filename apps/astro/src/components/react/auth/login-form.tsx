@@ -26,12 +26,12 @@
  * @description Uses TanStack Form for form state management and Zod for validation
  */
 
+import { getFieldError, getInputClass, labelClass, loginSchema } from '@/lib/form-utils';
+import { navigateTo } from '@/lib/navigation';
+import { cancelMFALogin, login, useAuthStore, verifyMFALogin } from '@/stores/auth';
 import { useForm } from '@tanstack/react-form';
 import { ArrowLeft, Eye, EyeOff, Key, Loader2, Shield } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-import { getFieldError, getInputClass, labelClass, loginSchema } from '@/lib/form-utils';
-import { cancelMFALogin, login, useAuthStore, verifyMFALogin } from '@/stores/auth';
 
 /**
  * Login form component that handles user authentication with 2FA support
@@ -69,7 +69,7 @@ export default function LoginForm() {
       const result = await login(value.email, value.password);
 
       if (result.success) {
-        window.location.href = '/dashboard';
+        navigateTo('/dashboard');
       } else if (result.requiresMFA) {
         // MFA required, don't reset form
       } else {
@@ -89,7 +89,7 @@ export default function LoginForm() {
   }, [mfaPending, useBackupCode]);
 
   if (!authLoading && isAuth) {
-    window.location.href = '/dashboard';
+    navigateTo('/dashboard');
     return null;
   }
 
@@ -128,7 +128,7 @@ export default function LoginForm() {
     const result = await verifyMFALogin(fullCode);
 
     if (result.success) {
-      window.location.href = '/dashboard';
+      navigateTo('/dashboard');
     } else {
       setError(result.error || 'Invalid code');
       setMfaCode('');
@@ -176,7 +176,7 @@ export default function LoginForm() {
     const result = await verifyMFALogin(backupCode);
 
     if (result.success) {
-      window.location.href = '/dashboard';
+      navigateTo('/dashboard');
     } else {
       setError(result.error || 'Invalid backup code');
       setBackupCode('');

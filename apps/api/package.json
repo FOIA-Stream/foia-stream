@@ -26,7 +26,7 @@
     "@napi-rs/canvas": "^0.1.86",
     "@scalar/hono-api-reference": "^0.9.30",
     "argon2": "^0.44.0",
-    "better-sqlite3": "^12.5.0",
+    "pg": "^8.13.1",
     "dayjs": "^1.11.19",
     "drizzle-orm": "^0.45.1",
     "effect": "^3.19.13",
@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@foia-stream/typescript-config": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/pg": "^8.11.10",
     "@types/bun": "^1.3.5",
     "@types/ua-parser-js": "^0.7.39",
     "@vitest/coverage-v8": "^4.0.16",

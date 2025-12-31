@@ -26,6 +26,7 @@
  */
 
 import { api, type FoiaRequest } from '@/lib/api';
+import { navigateTo } from '@/lib/navigation';
 import { formatDate, formatDateTime, getStatusColor } from '@/lib/utils';
 import { initAuth, useAuthStore } from '@/stores/auth';
 import {
@@ -85,7 +86,7 @@ export default function RequestDetail({ requestId }: Props) {
 
   useEffect(() => {
     if (!authLoading && !isAuth) {
-      window.location.href = '/login';
+      navigateTo('/login');
     }
   }, [authLoading, isAuth]);
 

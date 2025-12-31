@@ -27,8 +27,11 @@
 
 /**
  * Base URL for all API requests
+ * In production/Docker: uses relative /api path (nginx proxies to backend)
+ * In development: uses localhost:3001 directly
  * @constant
  * @type {string}
- * @default 'http://localhost:3000/api/v1'
  */
-export const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
+export const API_BASE =
+  import.meta.env.PUBLIC_API_URL ?? (isDev ? 'http://localhost:3001/api/v1' : '/api/v1');

@@ -1,0 +1,52 @@
+# Dockerfile for Astro Frontend (SSR)
+FROM oven/bun:1-alpine AS base
+WORKDIR /app
+
+# Stage 1: Copy all workspace source files
+FROM base AS with-sources
+RUN apk add --no-cache python3 make g++ linux-headers
+
+# Copy root workspace config
+COPY package.json bun.lock* ./
+
+# Copy ALL workspace directories (bun needs complete workspace structure)
+COPY packages ./packages
+COPY apps ./apps
+
+# Stage 2: Install dependencies (full workspace, all deps resolved correctly)
+FROM with-sources AS deps
+RUN bun install
+
+# Create standalone node_modules from apps/astro with dereferenced symlinks
+# Bun puts workspace-specific dependencies in apps/astro/node_modules (not root)
+RUN cp -rL apps/astro/node_modules astro_node_modules_standalone
+
+# Stage 3: Build Astro
+FROM deps AS build-astro
+WORKDIR /app/apps/astro
+RUN bun run build
+
+# Stage 4: Production image - slim
+FROM oven/bun:1-alpine AS production
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3001
+WORKDIR /app
+
+# Install Node.js for runtime
+RUN apk add --no-cache nodejs
+
+# Copy built artifacts
+COPY --from=build-astro /app/apps/astro/dist ./dist
+
+# Copy standalone node_modules from apps/astro (contains react, react-dom, etc.)
+COPY --from=deps /app/astro_node_modules_standalone ./node_modules
+
+# Security: Run as non-root
+RUN addgroup -g 1001 -S nodejs && \
+  adduser -S astro -u 1001 -G nodejs
+USER astro
+
+EXPOSE 3001
+
+CMD ["node", "dist/server/entry.mjs"]

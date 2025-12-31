@@ -42,6 +42,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 
 import type { FoiaRequest } from '@/lib/api';
 import { API_BASE } from '@/lib/config';
+import { navigateTo } from '@/lib/navigation';
 import { formatDate, getStatusColor } from '@/lib/utils';
 import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import { useDataLoader } from '../common/effect-data-loader';
@@ -232,13 +233,13 @@ export default function DashboardContent() {
 
   useEffect(() => {
     if (!authLoading && !isAuth) {
-      window.location.href = '/login';
+      navigateTo('/login');
     }
   }, [authLoading, isAuth]);
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/';
+    navigateTo('/');
   };
 
   if (authLoading) {

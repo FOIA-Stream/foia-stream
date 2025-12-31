@@ -30,6 +30,7 @@
  * @compliance NIST 800-53 MP-6 (Media Sanitization)
  */
 
+import { navigateTo } from '@/lib/navigation';
 import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import {
   AlertTriangle,
@@ -54,7 +55,11 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { documentsApi, type Document, type RedactionTemplate } from '../../../lib/api/documents.api';
+import {
+  type Document,
+  documentsApi,
+  type RedactionTemplate,
+} from '../../../lib/api/documents.api';
 import PDFTextRedactor from './pdf-text-redactor';
 
 // Types imported from documents.api.ts
@@ -242,7 +247,7 @@ export default function DocumentsPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuth) {
-      window.location.href = '/login';
+      navigateTo('/login');
     }
   }, [authLoading, isAuth]);
 

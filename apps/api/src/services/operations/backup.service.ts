@@ -33,10 +33,12 @@
  * @compliance CMMC 3.8.9 (Protect Backups)
  */
 
+import { env } from '@/config/env';
+import { BadRequestError, DatabaseError, NotFoundError } from '@foia-stream/shared';
+import { Schema as S } from 'effect';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -46,9 +48,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { BadRequestError, DatabaseError, NotFoundError } from '@foia-stream/shared';
-import { Schema as S } from 'effect';
-import { env } from '@/config/env';
 
 // ============================================
 // Effect Schema Definitions
@@ -101,7 +100,7 @@ const BackupMetadataSchema = S.Struct({
   checksum: S.String,
   compressed: S.Boolean,
   encrypted: S.Boolean,
-  databasePath: S.String,
+  databaseUrl: S.String,
   retentionPolicy: S.String,
   expiresAt: S.Date,
   status: BackupStatusSchema,
@@ -227,14 +226,37 @@ function ensureBackupDir(): void {
 }
 
 /**
- * Get database path from environment
+ * Get database connection URL from environment
  */
-function getDatabasePath(): string {
+function getDatabaseUrl(): string {
   const dbUrl = env.DATABASE_URL;
-  if (dbUrl === ':memory:') {
-    throw BadRequestError('Cannot backup in-memory database');
+  if (!dbUrl) {
+    throw BadRequestError('DATABASE_URL is not set');
   }
-  return dbUrl.replace('file:', '');
+  return dbUrl;
+}
+
+/**
+ * Parse PostgreSQL connection string into components
+ */
+function parsePostgresUrl(url: string): {
+  host: string;
+  port: string;
+  database: string;
+  user: string;
+  password: string;
+} {
+  const match = url.match(/postgresql:\/\/(?:([^:]+):([^@]+)@)?([^:/]+)(?::(\d+))?\/(.+)/);
+  if (!match) {
+    throw BadRequestError('Invalid PostgreSQL connection string');
+  }
+  return {
+    user: match[1] || 'postgres',
+    password: match[2] || '',
+    host: match[3] || 'localhost',
+    port: match[4] || '5432',
+    database: match[5] || 'postgres',
+  };
 }
 
 /**
@@ -282,7 +304,7 @@ function calculateExpirationDate(policy: RetentionPolicy, backupDate: Date): Dat
 // ============================================
 
 /**
- * Create a full database backup
+ * Create a full database backup using pg_dump
  */
 export async function createBackup(type: BackupType = 'full'): Promise<BackupResult> {
   const startTime = Date.now();
@@ -290,36 +312,26 @@ export async function createBackup(type: BackupType = 'full'): Promise<BackupRes
   try {
     ensureBackupDir();
 
-    const dbPath = getDatabasePath();
+    const dbUrl = getDatabaseUrl();
     const backupId = generateBackupId();
     const backupDate = new Date();
     const retentionPolicy = getRetentionPolicy(backupDate);
-    const backupFileName = `${backupId}.db`;
+    const backupFileName = `${backupId}.sql`;
     const backupPath = join(BACKUP_CONFIG.backupDir, backupFileName);
     const metadataPath = join(BACKUP_CONFIG.backupDir, `${backupId}.json`);
 
-    if (!existsSync(dbPath)) {
-      throw new DatabaseError('read', { metadata: { message: `Database not found: ${dbPath}` } });
-    }
-
-    const dbStats = statSync(dbPath);
-    if (dbStats.size > BACKUP_CONFIG.maxBackupSize) {
-      throw BadRequestError(`Database size (${dbStats.size}) exceeds maximum backup size`);
-    }
-
+    // Use pg_dump for PostgreSQL backup
     try {
-      execSync(`sqlite3 "${dbPath}" ".backup '${backupPath}'"`, { stdio: 'pipe' });
-    } catch {
-      copyFileSync(dbPath, backupPath);
-
-      const walPath = `${dbPath}-wal`;
-      const shmPath = `${dbPath}-shm`;
-      if (existsSync(walPath)) {
-        copyFileSync(walPath, `${backupPath}-wal`);
-      }
-      if (existsSync(shmPath)) {
-        copyFileSync(shmPath, `${backupPath}-shm`);
-      }
+      execSync(`pg_dump "${dbUrl}" --file="${backupPath}" --format=plain`, {
+        stdio: 'pipe',
+        env: { ...process.env },
+      });
+    } catch (error) {
+      throw new DatabaseError('backup', {
+        metadata: {
+          message: `pg_dump failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        },
+      });
     }
 
     if (!existsSync(backupPath)) {
@@ -337,7 +349,7 @@ export async function createBackup(type: BackupType = 'full'): Promise<BackupRes
       checksum,
       compressed: false,
       encrypted: false,
-      databasePath: dbPath,
+      databaseUrl: dbUrl.replace(/:[^:]+@/, ':***@'), // Mask password
       retentionPolicy,
       expiresAt: calculateExpirationDate(retentionPolicy, backupDate),
       status: 'completed',
@@ -368,7 +380,7 @@ export async function createBackup(type: BackupType = 'full'): Promise<BackupRes
 export async function verifyBackup(backupId: string): Promise<boolean> {
   try {
     const metadataPath = join(BACKUP_CONFIG.backupDir, `${backupId}.json`);
-    const backupPath = join(BACKUP_CONFIG.backupDir, `${backupId}.db`);
+    const backupPath = join(BACKUP_CONFIG.backupDir, `${backupId}.sql`);
 
     if (!existsSync(metadataPath) || !existsSync(backupPath)) {
       return false;
@@ -381,9 +393,9 @@ export async function verifyBackup(backupId: string): Promise<boolean> {
       return false;
     }
 
-    try {
-      execSync(`sqlite3 "${backupPath}" "SELECT 1;"`, { stdio: 'pipe' });
-    } catch {
+    // Verify the SQL file is valid by checking it starts with expected PostgreSQL output
+    const backupContent = readFileSync(backupPath, 'utf-8');
+    if (!backupContent.includes('PostgreSQL database dump') && !backupContent.includes('SET')) {
       return false;
     }
 
@@ -425,14 +437,14 @@ export function listBackups(): BackupMetadata[] {
 }
 
 /**
- * Restore from backup
+ * Restore from backup using psql
  */
 export async function restoreFromBackup(backupId: string): Promise<RecoveryResult> {
   const startTime = Date.now();
 
   try {
     const metadataPath = join(BACKUP_CONFIG.backupDir, `${backupId}.json`);
-    const backupPath = join(BACKUP_CONFIG.backupDir, `${backupId}.db`);
+    const backupPath = join(BACKUP_CONFIG.backupDir, `${backupId}.sql`);
 
     if (!existsSync(metadataPath) || !existsSync(backupPath)) {
       throw NotFoundError(`Backup not found: ${backupId}`);
@@ -444,30 +456,26 @@ export async function restoreFromBackup(backupId: string): Promise<RecoveryResul
     }
 
     const metadata = JSON.parse(readFileSync(metadataPath, 'utf-8')) as BackupMetadata;
-    const targetPath = getDatabasePath();
+    const dbUrl = getDatabaseUrl();
 
+    // Create pre-restore backup
     const preRestoreBackup = await createBackup('snapshot');
     if (!preRestoreBackup.success) {
       console.warn('Warning: Could not create pre-restore backup');
     }
 
-    copyFileSync(backupPath, targetPath);
-
-    const backupWalPath = `${backupPath}-wal`;
-    const backupShmPath = `${backupPath}-shm`;
-    const targetWalPath = `${targetPath}-wal`;
-    const targetShmPath = `${targetPath}-shm`;
-
-    if (existsSync(backupWalPath)) {
-      copyFileSync(backupWalPath, targetWalPath);
-    } else if (existsSync(targetWalPath)) {
-      unlinkSync(targetWalPath);
-    }
-
-    if (existsSync(backupShmPath)) {
-      copyFileSync(backupShmPath, targetShmPath);
-    } else if (existsSync(targetShmPath)) {
-      unlinkSync(targetShmPath);
+    // Restore using psql
+    try {
+      execSync(`psql "${dbUrl}" --file="${backupPath}"`, {
+        stdio: 'pipe',
+        env: { ...process.env },
+      });
+    } catch (error) {
+      throw new DatabaseError('restore', {
+        metadata: {
+          message: `psql restore failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        },
+      });
     }
 
     const duration = Date.now() - startTime;
@@ -503,7 +511,7 @@ export function cleanupExpiredBackups(): CleanupResult {
 
     if (expiresAt < now) {
       try {
-        const backupPath = join(BACKUP_CONFIG.backupDir, `${backup.id}.db`);
+        const backupPath = join(BACKUP_CONFIG.backupDir, `${backup.id}.sql`);
         const metadataPath = join(BACKUP_CONFIG.backupDir, `${backup.id}.json`);
 
         if (existsSync(backupPath)) {
@@ -512,11 +520,6 @@ export function cleanupExpiredBackups(): CleanupResult {
         if (existsSync(metadataPath)) {
           unlinkSync(metadataPath);
         }
-
-        const walPath = `${backupPath}-wal`;
-        const shmPath = `${backupPath}-shm`;
-        if (existsSync(walPath)) unlinkSync(walPath);
-        if (existsSync(shmPath)) unlinkSync(shmPath);
 
         deleted.push(backup.id);
       } catch (error) {

@@ -24,8 +24,8 @@
  * @file Database Connection
  * @module db
  * @author FOIA Stream Team
- * @description Initializes and exports the SQLite database connection using Drizzle ORM.
- *              Configures WAL mode for improved concurrent performance.
+ * @description Initializes and exports the PostgreSQL database connection using Drizzle ORM.
+ *              Configures connection pooling for optimal concurrent performance.
  * @compliance NIST 800-53 SC-28 (Protection of Information at Rest)
  */
 
@@ -33,36 +33,46 @@
 // FOIA Stream - Database Connection
 // ============================================
 
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from './schema';
 
 /**
- * Database file path from environment or default
+ * Database connection string from environment
  *
  * @constant
  * @type {string}
  */
-const DB_PATH = process.env.DATABASE_URL || './data/foia-stream.db';
+const DATABASE_URL =
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/foia_stream';
 
 /**
- * Native Bun SQLite database instance
+ * PostgreSQL connection pool
  *
  * @constant
- * @type {Database}
- * @description Creates or opens the SQLite database file with write-ahead logging enabled.
+ * @type {Pool}
+ * @description Creates a connection pool for efficient database connections.
+ *              Bun and Node.js compatible.
  */
-const sqlite = new Database(DB_PATH, { create: true });
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  // Connection pool settings for production
+  max: 20, // Maximum pool size
+  idleTimeoutMillis: 30000, // Close idle connections after 30s
+  connectionTimeoutMillis: 5000, // Timeout for new connections
+});
 
-// Enable WAL mode for better concurrent read/write performance
-sqlite.exec('PRAGMA journal_mode = WAL');
+// Log pool errors
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
 
 /**
  * Drizzle ORM database instance
  *
  * @constant
  * @type {ReturnType<typeof drizzle>}
- * @description Drizzle ORM wrapper around the SQLite connection with typed schema.
+ * @description Drizzle ORM wrapper around the PostgreSQL connection with typed schema.
  *
  * @example
  * ```typescript
@@ -76,7 +86,7 @@ sqlite.exec('PRAGMA journal_mode = WAL');
  * await db.insert(users).values({ ... });
  * ```
  */
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(pool, { schema });
 
 /**
  * Re-exported schema for type-safe queries
@@ -85,7 +95,15 @@ export const db = drizzle(sqlite, { schema });
 export { schema };
 
 /**
- * Raw SQLite connection for migrations and direct queries
+ * Raw PostgreSQL connection pool for direct queries or shutdown
  * @description Use with caution - prefer Drizzle ORM methods for type safety
  */
-export { sqlite };
+export { pool };
+
+/**
+ * Graceful shutdown helper
+ * @description Call this before process exit to close all pool connections
+ */
+export async function closeDb(): Promise<void> {
+  await pool.end();
+}

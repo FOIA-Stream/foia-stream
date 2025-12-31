@@ -32,6 +32,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { getFieldError, getInputClass, labelClass, registerSchema } from '@/lib/form-utils';
+import { navigateTo } from '@/lib/navigation';
 import { register, useAuthStore } from '@/stores/auth';
 
 /**
@@ -506,7 +507,7 @@ export default function RegisterForm() {
       });
 
       if (result.success) {
-        window.location.href = '/dashboard';
+        navigateTo('/dashboard');
       } else {
         setError(result.error || 'Registration failed');
       }
@@ -535,7 +536,7 @@ export default function RegisterForm() {
   };
 
   if (!authLoading && isAuth) {
-    window.location.href = '/dashboard';
+    navigateTo('/dashboard');
     return null;
   }
 

@@ -32,6 +32,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { type Agency, api, type Template } from '@/lib/api';
 import { getFieldError, getInputClass, labelClass, newRequestSchema } from '@/lib/form-utils';
+import { navigateTo } from '@/lib/navigation';
 import { CATEGORIES } from '@/lib/utils';
 import { initAuth, useAuthStore } from '@/stores/auth';
 import MultiAgencySelector from '../agencies/multi-agency-selector';
@@ -93,7 +94,7 @@ export default function NewRequestForm() {
         });
 
         if (response.success) {
-          window.location.href = '/dashboard';
+          navigateTo('/dashboard');
         } else {
           setError(response.error || 'Failed to create request');
           setSubmitProgress('');
@@ -111,7 +112,7 @@ export default function NewRequestForm() {
         });
 
         if (response.success) {
-          window.location.href = '/dashboard';
+          navigateTo('/dashboard');
         } else {
           setError(response.error || 'Failed to create requests');
           setSubmitProgress('');
@@ -126,7 +127,7 @@ export default function NewRequestForm() {
 
   useEffect(() => {
     if (!authLoading && !isAuth) {
-      window.location.href = '/login';
+      navigateTo('/login');
     }
   }, [authLoading, isAuth]);
 

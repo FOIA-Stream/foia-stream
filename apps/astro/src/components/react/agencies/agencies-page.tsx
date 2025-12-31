@@ -25,6 +25,9 @@
  * @module components/react/AgenciesPage
  */
 
+import { type Agency, api } from '@/lib/api';
+import { navigateTo } from '@/lib/navigation';
+import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import {
   Building2,
   ChevronDown,
@@ -45,8 +48,6 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type Agency, api } from '@/lib/api';
-import { initAuth, logout, useAuthStore } from '@/stores/auth';
 
 const FAVORITES_KEY = 'foiastream_favorite_agencies';
 
@@ -171,7 +172,7 @@ export default function AgenciesPage() {
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/';
+    navigateTo('/');
   };
 
   const clearFilters = () => {

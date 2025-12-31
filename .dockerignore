@@ -1,0 +1,53 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs (will be rebuilt in Docker)
+dist
+**/dist
+.next
+**/.next
+
+# Development files
+.git
+.gitignore
+*.md
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/tests
+**/__tests__
+coverage
+.nyc_output
+
+# CI/CD
+.github
+.gitlab
+
+# Environment files (use Docker secrets or env)
+.env*
+!.env.example
+!.env.*.example
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Cypress
+cypress/videos
+cypress/screenshots
+
+# Artifacts
+*.tgz
+*.tar.gz

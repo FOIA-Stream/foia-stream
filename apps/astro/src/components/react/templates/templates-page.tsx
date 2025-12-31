@@ -25,6 +25,8 @@
  * @module components/react/TemplatesPage
  */
 
+import { navigateTo } from '@/lib/navigation';
+import { initAuth, logout, useAuthStore } from '@/stores/auth';
 import {
   AlertCircle,
   Bookmark,
@@ -50,7 +52,6 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { initAuth, logout, useAuthStore } from '@/stores/auth';
 
 const SAVED_TEMPLATES_KEY = 'foiastream_saved_templates';
 
@@ -502,7 +503,7 @@ export default function TemplatesPage() {
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/';
+    navigateTo('/');
   };
 
   const filteredTemplates = TEMPLATES.filter((template) => {
