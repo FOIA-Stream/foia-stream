@@ -24,31 +24,26 @@
 // FOIA Stream - Agency Service Tests
 // ============================================
 
-import type { Database } from 'better-sqlite3';
 import { eq, like } from 'drizzle-orm';
-import type { drizzle } from 'drizzle-orm/better-sqlite3';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../src/db/schema';
-import { applyMigrations, cleanupTestDb, clearTestData, createTestDb, testData } from '../utils';
+import { cleanupTestDb, clearTestData, createTestDb, testData } from '../utils';
 
-let testSqlite: Database;
-let testDb: ReturnType<typeof drizzle>;
-const dbPath = `./data/test-agency-${Date.now()}.db`;
+let testDb: NodePgDatabase<typeof schema>;
 
 describe('AgencyService', () => {
   beforeAll(async () => {
-    const { db, sqlite } = createTestDb(dbPath);
-    testSqlite = sqlite;
+    const { db } = await createTestDb();
     testDb = db;
-    applyMigrations(testDb);
   });
 
   afterAll(async () => {
-    cleanupTestDb(testSqlite, dbPath);
+    await cleanupTestDb();
   });
 
   beforeEach(async () => {
-    clearTestData(testSqlite);
+    await clearTestData(testDb);
   });
 
   describe('createAgency', () => {
@@ -69,8 +64,8 @@ describe('AgencyService', () => {
           foiaEmail: agencyData.foiaEmail,
           responseDeadlineDays: agencyData.responseDeadlineDays,
           appealDeadlineDays: agencyData.appealDeadlineDays,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -91,8 +86,8 @@ describe('AgencyService', () => {
           state: 'CA',
           foiaEmail: 'foia@doj.ca.gov',
           responseDeadlineDays: 10,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -112,8 +107,8 @@ describe('AgencyService', () => {
           city: 'New York',
           foiaEmail: 'foil@nypd.org',
           responseDeadlineDays: 5,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -131,8 +126,8 @@ describe('AgencyService', () => {
           jurisdictionLevel: 'county',
           state: 'CA',
           county: 'Los Angeles',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -148,8 +143,8 @@ describe('AgencyService', () => {
         id: 'agency-update-1',
         name: 'Original Name',
         jurisdictionLevel: 'federal',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Update agency
@@ -158,7 +153,7 @@ describe('AgencyService', () => {
         .set({
           name: 'Updated Name',
           foiaEmail: 'new-email@agency.gov',
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(schema.agencies.id, 'agency-update-1'))
         .returning();
@@ -173,8 +168,8 @@ describe('AgencyService', () => {
         name: 'Test Agency',
         jurisdictionLevel: 'federal',
         responseDeadlineDays: 20,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await testDb
@@ -196,16 +191,16 @@ describe('AgencyService', () => {
           name: 'Federal Bureau of Investigation',
           abbreviation: 'FBI',
           jurisdictionLevel: 'federal',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
         {
           id: 'search-agency-2',
           name: 'Central Intelligence Agency',
           abbreviation: 'CIA',
           jurisdictionLevel: 'federal',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
         {
           id: 'search-agency-3',
@@ -213,8 +208,8 @@ describe('AgencyService', () => {
           abbreviation: 'CHP',
           jurisdictionLevel: 'state',
           state: 'CA',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
         {
           id: 'search-agency-4',
@@ -223,8 +218,8 @@ describe('AgencyService', () => {
           jurisdictionLevel: 'local',
           state: 'CA',
           city: 'Los Angeles',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       ]);
     });
@@ -282,28 +277,26 @@ describe('AgencyService', () => {
         id: 'get-agency-1',
         name: 'Test Get Agency',
         jurisdictionLevel: 'federal',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
-      const result = await testDb
+      const results = await testDb
         .select()
         .from(schema.agencies)
-        .where(eq(schema.agencies.id, 'get-agency-1'))
-        .get();
+        .where(eq(schema.agencies.id, 'get-agency-1'));
 
-      expect(result).toBeDefined();
-      expect(result?.name).toBe('Test Get Agency');
+      expect(results).toHaveLength(1);
+      expect(results[0]?.name).toBe('Test Get Agency');
     });
 
-    it('should return undefined for non-existent ID', async () => {
-      const result = await testDb
+    it('should return empty for non-existent ID', async () => {
+      const results = await testDb
         .select()
         .from(schema.agencies)
-        .where(eq(schema.agencies.id, 'non-existent-id'))
-        .get();
+        .where(eq(schema.agencies.id, 'non-existent-id'));
 
-      expect(result).toBeUndefined();
+      expect(results).toHaveLength(0);
     });
   });
 
@@ -314,8 +307,8 @@ describe('AgencyService', () => {
         id: 'stats-agency-1',
         name: 'Statistics Agency',
         jurisdictionLevel: 'federal',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Create user
@@ -329,8 +322,8 @@ describe('AgencyService', () => {
         isAnonymous: false,
         isVerified: false,
         twoFactorEnabled: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Create requests
@@ -344,8 +337,8 @@ describe('AgencyService', () => {
           description: 'Description 1',
           status: 'submitted',
           isPublic: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
         {
           id: 'stats-request-2',
@@ -356,8 +349,8 @@ describe('AgencyService', () => {
           description: 'Description 2',
           status: 'fulfilled',
           isPublic: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       ]);
 

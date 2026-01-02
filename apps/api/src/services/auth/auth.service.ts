@@ -132,7 +132,8 @@ export class AuthService {
    * @compliance NIST 800-53 AC-7 (Unsuccessful Logon Attempts)
    */
   private async isAccountLocked(userId: string): Promise<boolean> {
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    const users = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+    const user = users[0];
 
     if (!user || !user.lockedUntil) return false;
 
@@ -147,7 +148,7 @@ export class AuthService {
       .set({
         failedLoginAttempts: 0,
         lockedUntil: null,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.users.id, userId));
 
@@ -163,17 +164,17 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<void> {
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    const users = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+    const user = users[0];
 
     if (!user) return;
 
     const failedAttempts = (user.failedLoginAttempts || 0) + 1;
-    const now = new Date().toISOString();
+    const now = new Date();
 
-    let lockedUntil: string | null = null;
+    let lockedUntil: Date | null = null;
     if (failedAttempts >= SECURITY_CONFIG.maxFailedAttempts) {
-      const lockoutEnd = new Date(Date.now() + SECURITY_CONFIG.lockoutDurationMinutes * 60 * 1000);
-      lockedUntil = lockoutEnd.toISOString();
+      lockedUntil = new Date(Date.now() + SECURITY_CONFIG.lockoutDurationMinutes * 60 * 1000);
 
       // Log account lockout security event
       await securityMonitoring.logSecurityEvent({
@@ -221,7 +222,7 @@ export class AuthService {
         failedLoginAttempts: 0,
         lockedUntil: null,
         lastFailedLoginAt: null,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.users.id, userId));
   }
@@ -234,10 +235,9 @@ export class AuthService {
     const existing = await db
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, data.email.toLowerCase()))
-      .get();
+      .where(eq(schema.users.email, data.email.toLowerCase()));
 
-    if (existing) {
+    if (existing[0]) {
       throw ConflictError('Email already registered', { email: data.email });
     }
 
@@ -245,7 +245,7 @@ export class AuthService {
     const passwordHash = await passwordService.hashPassword(data.password);
 
     const id = nanoid();
-    const now = new Date().toISOString();
+    const now = new Date();
 
     await db.insert(schema.users).values({
       id,
@@ -265,14 +265,15 @@ export class AuthService {
     // Log audit event
     await this.logAudit(id, 'user_created', 'user', id);
 
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, id)).get();
+    const users = await db.select().from(schema.users).where(eq(schema.users.id, id));
+    const user = users[0];
 
     if (!user) {
       throw new DatabaseError('insert', { table: 'users', metadata: { userId: id } });
     }
 
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword as Omit<User, 'passwordHash'>;
+    return userWithoutPassword as unknown as Omit<User, 'passwordHash'>;
   }
 
   /**
@@ -283,11 +284,11 @@ export class AuthService {
     password: string,
     options?: { ipAddress?: string; userAgent?: string },
   ): Promise<LoginResult> {
-    const user = await db
+    const users = await db
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, email.toLowerCase()))
-      .get();
+      .where(eq(schema.users.email, email.toLowerCase()));
+    const user = users[0];
 
     if (!user) {
       // Log failed attempt even if user doesn't exist (timing attack prevention)
@@ -347,7 +348,7 @@ export class AuthService {
       // Create encrypted session
       const expiresAt = new Date(
         Date.now() + SECURITY_CONFIG.sessionExpiryDays * 24 * 60 * 60 * 1000,
-      ).toISOString();
+      );
 
       await secureSessionService.createSession(
         user.id,
@@ -429,7 +430,8 @@ export class AuthService {
       }
 
       logger.debug({ userId }, 'MFA verified, fetching user');
-      const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+      const fetchedUsers = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+      const user = fetchedUsers[0];
 
       if (!user) {
         throw NotFoundError('User not found', { userId });
@@ -446,7 +448,7 @@ export class AuthService {
       logger.debug({ userId }, 'Token generated, creating session');
       const expiresAt = new Date(
         Date.now() + SECURITY_CONFIG.sessionExpiryDays * 24 * 60 * 60 * 1000,
-      ).toISOString();
+      );
 
       await secureSessionService.createSession(
         userId,
@@ -498,7 +500,8 @@ export class AuthService {
    * Disable MFA for user (requires password verification first)
    */
   async disableMFA(userId: string, password: string): Promise<void> {
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    const fetchedUsers = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+    const user = fetchedUsers[0];
 
     if (!user) {
       throw NotFoundError('User not found', { userId });
@@ -517,11 +520,11 @@ export class AuthService {
    * Logout user and invalidate session
    */
   async logout(token: string): Promise<void> {
-    const session = await db
+    const sessions = await db
       .select()
       .from(schema.sessions)
-      .where(eq(schema.sessions.token, token))
-      .get();
+      .where(eq(schema.sessions.token, token));
+    const session = sessions[0];
 
     if (session) {
       await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
@@ -545,12 +548,13 @@ export class AuthService {
    * Get user by ID
    */
   async getUserById(id: string): Promise<Omit<User, 'passwordHash'> | null> {
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, id)).get();
+    const users = await db.select().from(schema.users).where(eq(schema.users.id, id));
+    const user = users[0];
 
     if (!user) return null;
 
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword as Omit<User, 'passwordHash'>;
+    return userWithoutPassword as unknown as Omit<User, 'passwordHash'>;
   }
 
   /**
@@ -564,7 +568,7 @@ export class AuthService {
       .update(schema.users)
       .set({
         ...data,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.users.id, id));
 
@@ -580,7 +584,8 @@ export class AuthService {
    * Change user password
    */
   async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, id)).get();
+    const fetchedUsers = await db.select().from(schema.users).where(eq(schema.users.id, id));
+    const user = fetchedUsers[0];
 
     if (!user) {
       throw NotFoundError('User not found', { userId: id });
@@ -597,7 +602,7 @@ export class AuthService {
       .update(schema.users)
       .set({
         passwordHash: newHash,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.users.id, id));
 
@@ -609,7 +614,8 @@ export class AuthService {
    * Verify a user's password without logging in
    */
   async verifyPassword(userId: string, password: string): Promise<boolean> {
-    const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+    const fetchedUsers = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+    const user = fetchedUsers[0];
 
     if (!user) {
       throw NotFoundError('User not found', { userId });
@@ -634,11 +640,11 @@ export class AuthService {
    * Revoke a specific session
    */
   async revokeSession(userId: string, sessionId: string): Promise<void> {
-    const session = await db
+    const sessions = await db
       .select()
       .from(schema.sessions)
-      .where(eq(schema.sessions.id, sessionId))
-      .get();
+      .where(eq(schema.sessions.id, sessionId));
+    const session = sessions[0];
 
     if (!session) {
       throw NotFoundError('Session not found', { sessionId });
@@ -728,7 +734,7 @@ export class AuthService {
       resourceType,
       resourceId,
       details: details ?? null,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     });
   }
 }

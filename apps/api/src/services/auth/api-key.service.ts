@@ -28,11 +28,11 @@
  * @compliance NIST 800-53 IA-5 (Authenticator Management)
  */
 
-import { randomBytes } from 'node:crypto';
+import { db, schema } from '@/db';
 import * as argon2 from 'argon2';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { db, schema } from '@/db';
+import { randomBytes } from 'node:crypto';
 
 /**
  * API Key Service
@@ -54,7 +54,7 @@ export class ApiKeyService {
    * Get the current API key info for a user (without the actual key)
    */
   async getApiKey(userId: string) {
-    const apiKey = await db
+    const apiKeys = await db
       .select({
         id: schema.apiKeys.id,
         keyPreview: schema.apiKeys.keyPreview,
@@ -63,10 +63,9 @@ export class ApiKeyService {
         lastUsedAt: schema.apiKeys.lastUsedAt,
       })
       .from(schema.apiKeys)
-      .where(eq(schema.apiKeys.userId, userId))
-      .get();
+      .where(eq(schema.apiKeys.userId, userId));
 
-    return apiKey || null;
+    return apiKeys[0] || null;
   }
 
   /**
@@ -74,7 +73,7 @@ export class ApiKeyService {
    */
   async createApiKey(
     userId: string,
-  ): Promise<{ id: string; key: string; name: string; createdAt: string }> {
+  ): Promise<{ id: string; key: string; name: string; createdAt: Date }> {
     // Delete existing key if any
     await db.delete(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
 
@@ -89,7 +88,7 @@ export class ApiKeyService {
 
     const id = nanoid();
     const keyPreview = `...${rawKey.slice(-8)}`;
-    const now = new Date().toISOString();
+    const now = new Date();
 
     await db.insert(schema.apiKeys).values({
       id,
@@ -122,11 +121,11 @@ export class ApiKeyService {
    * Delete the API key for a user
    */
   async deleteApiKey(userId: string): Promise<void> {
-    const existing = await db
+    const existingKeys = await db
       .select({ id: schema.apiKeys.id })
       .from(schema.apiKeys)
-      .where(eq(schema.apiKeys.userId, userId))
-      .get();
+      .where(eq(schema.apiKeys.userId, userId));
+    const existing = existingKeys[0];
 
     if (existing) {
       await db.delete(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
@@ -138,7 +137,7 @@ export class ApiKeyService {
         action: 'security_api_key_revoked',
         resourceType: 'api_key',
         resourceId: existing.id,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(),
       });
     }
   }
@@ -148,7 +147,7 @@ export class ApiKeyService {
    */
   async validateApiKey(key: string): Promise<string | null> {
     // Get all API keys (in a real app, you'd want to optimize this)
-    const apiKeys = await db.select().from(schema.apiKeys).all();
+    const apiKeys = await db.select().from(schema.apiKeys);
 
     for (const apiKey of apiKeys) {
       const isValid = await argon2.verify(apiKey.keyHash, key);
@@ -156,7 +155,7 @@ export class ApiKeyService {
         // Update last used
         await db
           .update(schema.apiKeys)
-          .set({ lastUsedAt: new Date().toISOString() })
+          .set({ lastUsedAt: new Date() })
           .where(eq(schema.apiKeys.id, apiKey.id));
 
         return apiKey.userId;

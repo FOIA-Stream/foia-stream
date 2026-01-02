@@ -109,7 +109,7 @@ export class AgencyService {
    */
   async createAgency(data: CreateAgencyDTO): Promise<Agency> {
     const id = nanoid();
-    const now = new Date().toISOString();
+    const now = new Date();
 
     await db.insert(schema.agencies).values({
       id,
@@ -135,9 +135,9 @@ export class AgencyService {
    * Get agency by ID
    */
   async getAgencyById(id: string): Promise<Agency | null> {
-    const agency = await db.select().from(schema.agencies).where(eq(schema.agencies.id, id)).get();
+    const agencies = await db.select().from(schema.agencies).where(eq(schema.agencies.id, id));
 
-    return agency as Agency | null;
+    return (agencies[0] as Agency) ?? null;
   }
 
   /**
@@ -178,10 +178,10 @@ export class AgencyService {
         .orderBy(schema.agencies.name)
         .limit(pageSize)
         .offset(offset),
-      db.select({ count: sql<number>`count(*)` }).from(schema.agencies).where(whereClause).get(),
+      db.select({ count: sql<number>`count(*)` }).from(schema.agencies).where(whereClause),
     ]);
 
-    const totalItems = countResult?.count ?? 0;
+    const totalItems = countResult[0]?.count ?? 0;
 
     return {
       data: agencies as Agency[],
@@ -213,7 +213,7 @@ export class AgencyService {
       .where(and(...conditions))
       .orderBy(schema.agencies.name);
 
-    return agencies as Agency[];
+    return agencies as unknown as Agency[];
   }
 
   /**
@@ -223,17 +223,16 @@ export class AgencyService {
     const stats = await db
       .select()
       .from(schema.agencyStats)
-      .where(eq(schema.agencyStats.agencyId, agencyId))
-      .get();
+      .where(eq(schema.agencyStats.agencyId, agencyId));
 
-    return stats;
+    return stats[0] ?? null;
   }
 
   /**
    * Update agency
    */
   async updateAgency(id: string, data: Partial<CreateAgencyDTO>): Promise<Agency> {
-    const now = new Date().toISOString();
+    const now = new Date();
 
     await db
       .update(schema.agencies)

@@ -24,35 +24,30 @@
 // FOIA Stream - Auth Service Tests
 // ============================================
 
-import type { Database } from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
-import type { drizzle } from 'drizzle-orm/better-sqlite3';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../../src/db/schema';
-import { applyMigrations, cleanupTestDb, clearTestData, createTestDb, testData } from '../utils';
+import { cleanupTestDb, clearTestData, createTestDb, testData } from '../utils';
 
-// We need to mock the db before importing the auth service
-let testSqlite: Database;
-let testDb: ReturnType<typeof drizzle>;
-
-// Mock the database module
-const dbPath = `./data/test-auth-${Date.now()}.db`;
+let testDb: NodePgDatabase<typeof schema>;
+let testPool: Pool;
 
 describe('AuthService', () => {
   beforeAll(async () => {
-    // Create test database
-    const { db, sqlite } = createTestDb(dbPath);
-    testSqlite = sqlite;
+    // Create test database (PostgreSQL)
+    const { db, pool } = await createTestDb();
     testDb = db;
-    applyMigrations(testDb);
+    testPool = pool;
   });
 
   afterAll(async () => {
-    cleanupTestDb(testSqlite, dbPath);
+    await cleanupTestDb();
   });
 
   beforeEach(async () => {
-    clearTestData(testSqlite);
+    await clearTestData(testDb);
   });
 
   describe('createUser', () => {
@@ -72,8 +67,8 @@ describe('AuthService', () => {
           isAnonymous: false,
           isVerified: false,
           twoFactorEnabled: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -97,8 +92,8 @@ describe('AuthService', () => {
         isAnonymous: false,
         isVerified: false,
         twoFactorEnabled: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Try to insert duplicate
@@ -113,8 +108,8 @@ describe('AuthService', () => {
           isAnonymous: false,
           isVerified: false,
           twoFactorEnabled: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }),
       ).rejects.toThrow();
     });
@@ -135,8 +130,8 @@ describe('AuthService', () => {
             isAnonymous: false,
             isVerified: false,
             twoFactorEnabled: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
           })
           .returning();
 
@@ -158,12 +153,12 @@ describe('AuthService', () => {
         isAnonymous: false,
         isVerified: false,
         twoFactorEnabled: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Create session
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       const result = await testDb
         .insert(schema.sessions)
         .values({
@@ -171,7 +166,7 @@ describe('AuthService', () => {
           userId: 'test-user-session',
           token: 'test-jwt-token',
           expiresAt,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(),
         })
         .returning();
 
@@ -192,8 +187,8 @@ describe('AuthService', () => {
         isAnonymous: false,
         isVerified: false,
         twoFactorEnabled: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Create session
@@ -201,8 +196,8 @@ describe('AuthService', () => {
         id: 'test-session-logout',
         userId: 'test-user-logout',
         token: 'token-to-delete',
-        expiresAt: new Date(Date.now() + 86400000).toISOString(),
-        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 86400000),
+        createdAt: new Date(),
       });
 
       // Delete session
@@ -328,7 +323,7 @@ describe('AuthService', () => {
           resourceId: 'test-user-id',
           details: { email: 'test@example.com' },
           ipAddress: '127.0.0.1',
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(),
         })
         .returning();
 

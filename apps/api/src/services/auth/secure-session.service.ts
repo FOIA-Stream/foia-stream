@@ -29,12 +29,12 @@
  * @compliance NIST 800-53 AC-12 (Session Termination)
  */
 
-import { eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
-import { UAParser } from 'ua-parser-js';
 import { env } from '@/config/env';
 import { db, schema } from '@/db';
 import { decryptData, encryptData } from '@/utils/security';
+import { eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { UAParser } from 'ua-parser-js';
 
 /**
  * Session metadata that gets encrypted
@@ -122,12 +122,12 @@ export class SecureSessionService {
   async createSession(
     userId: string,
     token: string,
-    expiresAt: string,
+    expiresAt: Date,
     ipAddress?: string,
     userAgent?: string,
   ): Promise<string> {
     const sessionId = nanoid();
-    const now = new Date().toISOString();
+    const now = new Date();
 
     const encryptedMetadata = await this.encryptMetadata({
       ipAddress: ipAddress || null,
@@ -156,7 +156,7 @@ export class SecureSessionService {
   async updateLastActive(sessionId: string): Promise<void> {
     await db
       .update(schema.sessions)
-      .set({ lastActiveAt: new Date().toISOString() })
+      .set({ lastActiveAt: new Date() })
       .where(eq(schema.sessions.id, sessionId));
   }
 
@@ -171,19 +171,18 @@ export class SecureSessionService {
       id: string;
       deviceName: string | null;
       ipAddress: string | null;
-      lastActiveAt: string | null;
-      createdAt: string;
+      lastActiveAt: Date | null;
+      createdAt: Date;
       isCurrent: boolean;
     }>
   > {
     const sessions = await db
       .select()
       .from(schema.sessions)
-      .where(eq(schema.sessions.userId, userId))
-      .all();
+      .where(eq(schema.sessions.userId, userId));
 
     const decryptedSessions = await Promise.all(
-      sessions.map(async (session) => {
+      sessions.map(async (session: typeof schema.sessions.$inferSelect) => {
         let decryptedMetadata: SessionMetadata = {
           ipAddress: null,
           userAgent: null,
