@@ -1,0 +1,23 @@
+# Custom PostgreSQL image with extensions
+# Provides pre-installed extensions and auto-runs migrations on first startup
+FROM postgres:16-alpine
+
+# Install commonly needed extensions
+RUN apk add --no-cache \
+  postgresql16-contrib \
+  # For future vector search capabilities (AI embeddings)
+  && echo "Extension packages installed"
+
+# Create directory for initialization scripts
+RUN mkdir -p /docker-entrypoint-initdb.d
+
+# Copy initialization script that enables extensions
+COPY ./scripts/postgres-init.sql /docker-entrypoint-initdb.d/00-init-extensions.sql
+
+# Set environment defaults
+ENV POSTGRES_DB=foia_stream
+ENV POSTGRES_USER=foia
+
+# Health check with proper database targeting
+HEALTHCHECK --interval=5s --timeout=5s --retries=5 --start-period=5s \
+  CMD pg_isready -U foia -d foia_stream || exit 1

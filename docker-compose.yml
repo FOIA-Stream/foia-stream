@@ -90,24 +90,49 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - foia-network
     restart: unless-stopped
 
   # ============================================
-  # PostgreSQL Database
+  # Database Migration Service (runs once)
+  # ============================================
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: foia-migrate
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://foia:foia_dev_password@postgres:5432/foia_stream"
+    command: ["bun", "run", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - foia-network
+    restart: "no"
+
+  # ============================================
+  # PostgreSQL Database (Custom Image)
   # ============================================
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     container_name: foia-postgres
     environment:
       POSTGRES_USER: foia
       POSTGRES_PASSWORD: foia_dev_password
       POSTGRES_DB: foia_stream
+    ports:
+      - "5433:5432"    # Exposed on 5433 to avoid conflict with local PostgreSQL
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U foia"]
+      test: ["CMD-SHELL", "pg_isready -U foia -d foia_stream"]
       interval: 5s
       timeout: 5s
       retries: 5

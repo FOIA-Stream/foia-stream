@@ -44,6 +44,7 @@
 
 import app from './src/app';
 import { env } from './src/config/env';
+import './src/polyfills';
 import { dataRetentionService } from './src/services';
 
 console.log(`

@@ -34,6 +34,8 @@ WORKDIR /app
 COPY --from=build-api /app/apps/api/dist ./dist
 COPY --from=build-api /app/node_modules ./node_modules
 COPY --from=with-shared /app/packages/shared ./packages/shared
+COPY --from=build-api /app/apps/api/package.json ./
+COPY --from=build-api /app/apps/api/drizzle.config.ts ./
 
 # Security: Run as non-root
 RUN addgroup -g 1001 -S nodejs && \

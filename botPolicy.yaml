@@ -1,0 +1,4 @@
+bots:
+  - name: "allow-all"
+    action: "ALLOW"
+    path_regex: ".*"
