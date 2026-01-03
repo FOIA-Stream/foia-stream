@@ -1,39 +1,5 @@
 services:
   # ============================================
-  # Anubis - Bot Protection Reverse Proxy
-  # ============================================
-  anubis:
-    image: ghcr.io/techarohq/anubis:latest
-    container_name: foia-anubis
-    environment:
-      BIND: ":8080"
-      DIFFICULTY: "4"
-      METRICS_BIND: ":9090"
-      SERVE_ROBOTS_TXT: "true"
-      TARGET: "http://nginx:80"
-      POLICY_FNAME: "/data/cfg/botPolicy.yaml"
-      OG_PASSTHROUGH: "true"
-      OG_EXPIRY_TIME: "24h"
-      USE_REMOTE_ADDRESS: "true"  # Use client IP directly (no upstream proxy)
-      PUBLIC_URL: "http://localhost:8080"  # Explicit public URL to preserve port in redirects
-    healthcheck:
-      test: ["CMD", "anubis", "--healthcheck"]
-      interval: 5s
-      timeout: 30s
-      retries: 5
-      start_period: 500ms
-    ports:
-      - "8080:8080"    # Main proxy port (public access)
-    volumes:
-      - "./botPolicy.yaml:/data/cfg/botPolicy.yaml:ro"
-    depends_on:
-      nginx:
-        condition: service_started
-    networks:
-      - foia-network
-    restart: unless-stopped
-
-  # ============================================
   # Astro Frontend (SSR)
   # ============================================
   astro:
@@ -56,6 +22,8 @@ services:
   nginx:
     image: nginx:alpine
     container_name: foia-nginx
+    ports:
+      - "8080:80"    # Main access point
     volumes:
       - "./nginx.conf:/etc/nginx/nginx.conf:ro"
     depends_on:
@@ -90,30 +58,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - foia-network
     restart: unless-stopped
-
-  # ============================================
-  # Database Migration Service (runs once)
-  # ============================================
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    container_name: foia-migrate
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: "postgresql://foia:foia_dev_password@postgres:5432/foia_stream"
-    command: ["bun", "run", "db:migrate"]
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - foia-network
-    restart: "no"
 
   # ============================================
   # PostgreSQL Database (Custom Image)
