@@ -27,6 +27,7 @@ WORKDIR /app
 
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=workspace /app/apps/api/package.json ./apps/api/package.json
+COPY --from=workspace /app/apps/api/src ./apps/api/src
 COPY --from=workspace /app/packages/shared ./packages/shared
 COPY --from=workspace /app/packages/typescript-config ./packages/typescript-config
 
