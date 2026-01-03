@@ -54,6 +54,8 @@ const EnvSchema = S.Struct({
     S.optionalWith({ default: () => 'development' as const }),
   ),
 
+  FORCE_HTTPS: S.BooleanFromString.pipe(S.optionalWith({ default: () => true })),
+
   /** SQLite database file path */
   DATABASE_URL: S.String.pipe(S.optionalWith({ default: () => './data/foia-stream.db' })),
 

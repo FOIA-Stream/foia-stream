@@ -51,6 +51,10 @@ export function httpsEnforcement(): MiddlewareHandler {
       return next();
     }
 
+    if (env.FORCE_HTTPS === false) {
+      return next();
+    }
+
     // Check for HTTPS via various headers (handles proxies/load balancers)
     const proto = c.req.header('x-forwarded-proto');
     const isSecure =

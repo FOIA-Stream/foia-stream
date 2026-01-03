@@ -1,8 +1,7 @@
-# Dockerfile for API (Hono/Bun)
+
 FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
-# Install build dependencies for native modules
 FROM base AS deps
 RUN apk add --no-cache python3 make g++ linux-headers
 
@@ -11,37 +10,39 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
 COPY apps/api/package.json ./apps/api/
 
-# Install dependencies
-RUN bun install
+RUN bun install --frozen-lockfile
 
-# Copy shared package (exports TypeScript directly)
-FROM deps AS with-shared
+FROM deps AS workspace
 COPY packages/shared ./packages/shared
 COPY packages/typescript-config ./packages/typescript-config
-
-# Build API
-FROM with-shared AS build-api
 COPY apps/api ./apps/api
+
+FROM workspace AS build
 WORKDIR /app/apps/api
 RUN bun run build
 
-# Production image - slim, no build tools
-FROM oven/bun:1-alpine AS production
+FROM oven/bun:1-alpine AS api
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Copy built artifacts and runtime deps only
-COPY --from=build-api /app/apps/api/dist ./dist
-COPY --from=build-api /app/node_modules ./node_modules
-COPY --from=with-shared /app/packages/shared ./packages/shared
-COPY --from=build-api /app/apps/api/package.json ./
-COPY --from=build-api /app/apps/api/drizzle.config.ts ./
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=workspace /app/apps/api/package.json ./apps/api/package.json
+COPY --from=workspace /app/packages/shared ./packages/shared
+COPY --from=workspace /app/packages/typescript-config ./packages/typescript-config
 
-# Security: Run as non-root
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+
 RUN addgroup -g 1001 -S nodejs && \
-  adduser -S api -u 1001 -G nodejs
+    adduser -S api -u 1001 -G nodejs
 USER api
 
 EXPOSE 3001
 
-CMD ["bun", "run", "dist/index.js"]
+CMD ["bun", "run", "apps/api/dist/index.js"]
+
+FROM workspace AS migrate
+ENV NODE_ENV=production
+WORKDIR /app/apps/api
+
+CMD ["bun", "run", "db:migrate"]
