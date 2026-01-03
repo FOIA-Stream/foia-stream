@@ -99,6 +99,24 @@ services:
       - foia-network
     restart: unless-stopped
 
+  seed-agencies:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: api
+    command: ["bun", "run", "src/db/seed-agencies.ts"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - foia-network
+    restart: "no"
+
 networks:
   foia-network:
     driver: bridge
